@@ -8,14 +8,15 @@
 //
 // One call per route (not per stop) keeps this at 7 requests a cycle.
 
-import { mbtaGet } from "../lib/mbta";
+import { getDelayAlerts, mbtaGet } from "../lib/mbta";
 import { pool } from "../lib/db";
-import { reconcileBosses, type DelaySample } from "../lib/boss";
+import { evaluateLines, reconcileBosses, type DelaySample } from "../lib/boss";
 import { ALL_ROUTES, type RouteId } from "../types";
 
 const INTERVAL_MS = 15_000;
 
 interface Row {
+  tripId: string;
   stopId: string;
   route: RouteId;
   directionId: number;
@@ -52,9 +53,11 @@ async function collectRoute(route: RouteId): Promise<Row[]> {
     if (!sched) continue; // no schedule to compare against, so no delay
 
     const stopId = p.relationships?.stop?.data?.id;
-    if (!stopId) continue;
+    const tripId = p.relationships?.trip?.data?.id;
+    if (!stopId || !tripId) continue;
 
     rows.push({
+      tripId,
       stopId,
       route,
       directionId: Number(p.attributes.direction_id ?? 0),
@@ -98,17 +101,32 @@ async function tick() {
     values
   );
 
+  // Every row above is stored raw. The boss decision de-duplicates to one
+  // sample per train inside evaluateLines; nothing here is filtered for it.
   const samples: DelaySample[] = all.map((r) => ({
     route: r.route,
+    tripId: r.tripId,
     stopId: r.stopId,
+    predictedMs: Date.parse(r.predicted),
     delaySeconds: r.delaySeconds,
   }));
 
-  await reconcileBosses(samples);
+  let alerts = new Set<RouteId>();
+  try {
+    alerts = await getDelayAlerts();
+  } catch (e) {
+    console.warn("[poll] alerts failed:", (e as Error).message);
+  }
 
-  const worst = Math.max(...all.map((r) => r.delaySeconds));
+  const verdicts = evaluateLines(samples, alerts);
+  await reconcileBosses(verdicts);
+
+  // Late trains per line (5+ min, one sample per train), for tuning the threshold.
+  const late = verdicts
+    .map((v) => `${v.line} ${v.lateTrains}/${v.trainsSampled}${v.delayAlert ? "+alert" : ""}`)
+    .join("  ");
   console.log(
-    `[poll] ${new Date().toLocaleTimeString()} wrote ${all.length} rows, worst delay ${worst}s`
+    `[poll] ${new Date().toLocaleTimeString()} wrote ${all.length} rows | late trains: ${late}`
   );
 }
 

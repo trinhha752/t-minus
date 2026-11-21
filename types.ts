@@ -89,10 +89,10 @@ export interface Vehicle {
 export interface BossState {
   line: TeamLine;
   active: boolean;
-  /** Mean seconds behind schedule across that line's sampled stops. */
+  /** Mean seconds behind schedule over the last 15 min (delay_5m), never negative. */
   avgDelaySeconds: number;
-  /** How many stops are currently over the threshold. */
-  laggingStops: number;
+  /** Distinct trains on this line currently 5+ min late, from the latest poll. */
+  lateTrains: number;
   hpTotal: number;
   hpRemaining: number;
   /** ISO string, null when no boss is up. */

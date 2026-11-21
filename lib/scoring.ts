@@ -18,10 +18,12 @@ export const BOSS_DAMAGE_PER_CORRECT = 10;
 export const BOSS_HP_PER_RIDER = 50;
 export const BOSS_HP_MIN = 50; // so one person can still win in a demo
 
-/** A line is "behind" at this many seconds late... */
+/** A train is "late" at this many seconds behind schedule, at its next stop... */
 export const BOSS_DELAY_THRESHOLD_SECONDS = 300;
-/** ...at this many stops at once. */
-export const BOSS_MIN_LAGGING_STOPS = 3;
+/** ...and a boss spawns when this many distinct trains on one line are late. */
+export const BOSS_MIN_LATE_TRAINS = 3;
+/** A detected boss escapes after this many clean polls in a row (15s each). */
+export const BOSS_CLEAR_POLLS = 2;
 
 /**
  * Rough kg of CO2 saved versus driving the same trip.

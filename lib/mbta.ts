@@ -272,7 +272,7 @@ export async function getScheduleByTrip(
 
 /* ---------- alerts: the cheap boss trigger ---------- */
 
-/** Active delay alerts per route. Use this if the schedule diff gets fiddly. */
+/** Routes with an active official delay alert. The poller spawns a boss on these too. */
 export async function getDelayAlerts(): Promise<Set<RouteId>> {
   const doc = await mbtaGet({
     endpoint: "/alerts",
@@ -287,7 +287,9 @@ export async function getDelayAlerts(): Promise<Set<RouteId>> {
   const hit = new Set<RouteId>();
   for (const r of doc.data) {
     const effect = str(r.attributes.effect);
-    if (effect !== "DELAY" && effect !== "SERVICE_CHANGE") continue;
+    // DELAY only. SERVICE_CHANGE, SHUTTLE and closures are planned work,
+    // listed for weeks at a time, and would keep a boss up permanently.
+    if (effect !== "DELAY") continue;
     // informed_entity lives on attributes for alerts, not relationships
     const entities = r.attributes.informed_entity;
     if (!Array.isArray(entities)) continue;

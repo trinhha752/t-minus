@@ -161,3 +161,24 @@ ALTER TABLE prediction_snapshots SET (
 
 SELECT add_compression_policy('prediction_snapshots', INTERVAL '6 hours',
   if_not_exists => TRUE);
+
+/* ---------- boss detection state (added after the first live run) ---------- */
+
+-- Where a boss came from. The poller only retires 'detected' bosses, so a
+-- boss started by scripts/fake-boss.ts survives until kill-boss or defeat.
+ALTER TABLE boss_events
+  ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'detected'
+  CHECK (source IN ('detected', 'manual'));
+
+-- One row per line, rewritten every poll: the numbers the boss decision used.
+-- /api/boss reads it for live counts; clean_polls is how many polls in a row
+-- the line has been below the threshold, so a boss does not flicker off.
+CREATE TABLE IF NOT EXISTS line_status (
+  line                TEXT PRIMARY KEY CHECK (line IN ('Red','Orange','Blue','Green')),
+  late_trains         INTEGER NOT NULL,
+  trains_sampled      INTEGER NOT NULL,
+  worst_delay_seconds INTEGER NOT NULL,
+  delay_alert         BOOLEAN NOT NULL,
+  clean_polls         INTEGER NOT NULL DEFAULT 0,
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);

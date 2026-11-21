@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Cinzel, IM_Fell_English, Inter } from "next/font/google";
-import { PhoneFrame } from "@/components/run/PhoneFrame";
-import { RunProvider } from "@/components/run/RunProvider";
 import "./globals.css";
 
 // Fonts from the Figma design, self-hosted by next/font.
@@ -26,11 +24,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${bricolage.variable} ${inter.variable} ${cinzel.variable} ${imFell.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <RunProvider>
-          <PhoneFrame>{children}</PhoneFrame>
-        </RunProvider>
-      </body>
+      {/* The phone frame and run state live in app/(game)/layout.tsx, so pages like /dev stay full-width. */}
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

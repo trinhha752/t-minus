@@ -1,33 +1,28 @@
-// Station screen. Owner: Frontend.
+// Station screen: the map with this station's card open. Owner: World + run flow.
+// CharacterChat, GuessGame and TriviaRound are unmounted for now (files untouched);
+// remount them here once they do something.
 import { Suspense } from "react";
-import CharacterChat from "@/components/CharacterChat";
-import GuessGame from "@/components/GuessGame";
-import TriviaRound from "@/components/TriviaRound";
+import { notFound } from "next/navigation";
+import { StationView } from "@/components/run/views";
+import { STATIONS } from "@/components/run/stations";
 
 type Params = Promise<{ id: string }>;
+
+export function generateStaticParams() {
+  return STATIONS.map((s) => ({ id: s.id }));
+}
 
 export default function StationPage({ params }: { params: Params }) {
   // Cache Components: reading params must happen inside a Suspense boundary.
   return (
-    <main className="flex flex-1 flex-col gap-6 p-6">
-      <Suspense fallback={<p>Loading station…</p>}>
-        <Station params={params} />
-      </Suspense>
-    </main>
+    <Suspense fallback={null}>
+      <Station params={params} />
+    </Suspense>
   );
 }
 
 async function Station({ params }: { params: Params }) {
   const { id } = await params;
-  return (
-    <>
-      <h1 className="text-2xl font-bold">Station: {id}</h1>
-      <button className="w-fit rounded border px-4 py-2" type="button">
-        Check in
-      </button>
-      <CharacterChat stationId={id} />
-      <GuessGame stationId={id} />
-      <TriviaRound stationId={id} />
-    </>
-  );
+  if (!STATIONS.some((s) => s.id === id)) notFound();
+  return <StationView id={id} />;
 }

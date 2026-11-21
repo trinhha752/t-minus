@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Cinzel, IM_Fell_English, Inter } from "next/font/google";
+import { PhoneFrame } from "@/components/run/PhoneFrame";
+import { RunProvider } from "@/components/run/RunProvider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Fonts from the Figma design, self-hosted by next/font.
+const bricolage = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin"] });
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
+const cinzel = Cinzel({ variable: "--font-cinzel", subsets: ["latin"] });
+const imFell = IM_Fell_English({
+  variable: "--font-im-fell",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -21,9 +24,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${bricolage.variable} ${inter.variable} ${cinzel.variable} ${imFell.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <RunProvider>
+          <PhoneFrame>{children}</PhoneFrame>
+        </RunProvider>
+      </body>
     </html>
   );
 }

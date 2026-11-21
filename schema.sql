@@ -1,0 +1,163 @@
+-- schema.sql — Tiger Data (Postgres)
+-- Run once:  npm run db:schema   (or psql "$DATABASE_URL" -f schema.sql)
+
+-- prediction_snapshots is the time-series table. It is what makes the
+-- Tiger Data entry real, and it is what the Delay Boss reads from.
+
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+
+/* ---------- players ---------- */
+
+CREATE TABLE IF NOT EXISTS users (
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,
+  team_line     TEXT NOT NULL CHECK (team_line IN ('Red','Orange','Blue','Green')),
+  points        INTEGER NOT NULL DEFAULT 0,
+  streak        INTEGER NOT NULL DEFAULT 0,
+  last_ride_date DATE,
+  co2_saved_kg  NUMERIC(10,3) NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+/* ---------- world ---------- */
+
+CREATE TABLE IF NOT EXISTS stations (
+  id             TEXT PRIMARY KEY,          -- MBTA stop id, e.g. place-pktrm
+  name           TEXT NOT NULL,
+  routes         TEXT[] NOT NULL,
+  lat            DOUBLE PRECISION NOT NULL,
+  lon            DOUBLE PRECISION NOT NULL,
+  character_name TEXT,
+  persona        TEXT,                      -- system prompt for the agent
+  legend         TEXT,
+  quest_seeds    TEXT[]
+);
+
+CREATE TABLE IF NOT EXISTS checkins (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id),
+  station_id TEXT NOT NULL REFERENCES stations(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- One check-in per station per day is what scores. Enforce it in the DB
+-- so a double-tap cannot farm points.
+CREATE UNIQUE INDEX IF NOT EXISTS checkins_one_per_day
+  ON checkins (user_id, station_id, ((created_at AT TIME ZONE 'America/New_York')::date));
+
+CREATE TABLE IF NOT EXISTS badges (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id),
+  type       TEXT NOT NULL CHECK (type IN ('station','line','streak','boss')),
+  label      TEXT NOT NULL,
+  earned_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, type, label)
+);
+
+/* ---------- arrival guess ---------- */
+
+CREATE TABLE IF NOT EXISTS guesses (
+  id              TEXT PRIMARY KEY,
+  user_id         TEXT NOT NULL REFERENCES users(id),
+  station_id      TEXT NOT NULL REFERENCES stations(id),
+  guess_minutes   NUMERIC(5,2) NOT NULL,
+  target_arrival  TIMESTAMPTZ NOT NULL,
+  actual_minutes  NUMERIC(5,2),
+  points_earned   INTEGER,
+  resolved        BOOLEAN NOT NULL DEFAULT false,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+/* ---------- trivia ---------- */
+
+CREATE TABLE IF NOT EXISTS trivia_questions (
+  id           TEXT PRIMARY KEY,
+  station_id   TEXT NOT NULL REFERENCES stations(id),
+  question     TEXT NOT NULL,
+  options      TEXT[] NOT NULL,
+  answer_index INTEGER NOT NULL,
+  explanation  TEXT,
+  source_url   TEXT,
+  -- verified=false means no human has checked the fact. The API must never
+  -- serve these. Flip to true only after someone reads the source.
+  verified     BOOLEAN NOT NULL DEFAULT false
+);
+
+CREATE INDEX IF NOT EXISTS trivia_by_station
+  ON trivia_questions (station_id) WHERE verified;
+
+CREATE TABLE IF NOT EXISTS trivia_answers (
+  id             BIGSERIAL PRIMARY KEY,
+  user_id        TEXT NOT NULL REFERENCES users(id),
+  question_id    TEXT NOT NULL REFERENCES trivia_questions(id),
+  correct        BOOLEAN NOT NULL,
+  boss_event_id  BIGINT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+/* ---------- boss ---------- */
+
+CREATE TABLE IF NOT EXISTS boss_events (
+  id            BIGSERIAL PRIMARY KEY,
+  line          TEXT NOT NULL CHECK (line IN ('Red','Orange','Blue','Green')),
+  started_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ended_at      TIMESTAMPTZ,
+  hp_total      INTEGER NOT NULL,
+  hp_remaining  INTEGER NOT NULL,
+  defeated      BOOLEAN NOT NULL DEFAULT false
+);
+
+-- At most one live boss per line.
+CREATE UNIQUE INDEX IF NOT EXISTS one_live_boss_per_line
+  ON boss_events (line) WHERE ended_at IS NULL;
+
+/* ---------- time series: the Tiger Data centrepiece ---------- */
+
+CREATE TABLE IF NOT EXISTS prediction_snapshots (
+  observed_at    TIMESTAMPTZ NOT NULL,
+  stop_id        TEXT NOT NULL,
+  route          TEXT NOT NULL,
+  direction_id   SMALLINT NOT NULL,
+  predicted_at   TIMESTAMPTZ,
+  scheduled_at   TIMESTAMPTZ,
+  delay_seconds  INTEGER
+);
+
+SELECT create_hypertable(
+  'prediction_snapshots', 'observed_at',
+  if_not_exists => TRUE,
+  chunk_time_interval => INTERVAL '1 hour'
+);
+
+CREATE INDEX IF NOT EXISTS snapshots_route_time
+  ON prediction_snapshots (route, observed_at DESC);
+
+-- Rolling average delay per route, 5-minute buckets.
+-- This is what spawns a boss and what draws the delay chart.
+CREATE MATERIALIZED VIEW IF NOT EXISTS delay_5m
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('5 minutes', observed_at) AS bucket,
+  route,
+  AVG(delay_seconds)        AS avg_delay_seconds,
+  MAX(delay_seconds)        AS max_delay_seconds,
+  COUNT(DISTINCT stop_id)   AS stops_sampled
+FROM prediction_snapshots
+WHERE delay_seconds IS NOT NULL
+GROUP BY bucket, route
+WITH NO DATA;
+
+SELECT add_continuous_aggregate_policy('delay_5m',
+  start_offset => INTERVAL '2 hours',
+  end_offset   => INTERVAL '1 minute',
+  schedule_interval => INTERVAL '1 minute',
+  if_not_exists => TRUE);
+
+-- Compression keeps the free tier comfortable over a 24h hackathon.
+ALTER TABLE prediction_snapshots SET (
+  timescaledb.compress,
+  timescaledb.compress_segmentby = 'route'
+);
+
+SELECT add_compression_policy('prediction_snapshots', INTERVAL '6 hours',
+  if_not_exists => TRUE);

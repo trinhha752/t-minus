@@ -4,8 +4,22 @@
 import { Pool } from "pg";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __pgPool: Pool | undefined;
+}
+
+/**
+ * Tiger Data's connection string says sslmode=require, and its certificate
+ * chain ends in a self-signed root. `pg` reads "require" as full verification
+ * and rejects that chain, so ask for libpq's meaning instead: encrypt the
+ * connection without verifying the chain.
+ */
+function connectionString(): string | undefined {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return undefined;
+  const url = new URL(raw);
+  if (!url.searchParams.has("sslmode")) url.searchParams.set("sslmode", "require");
+  if (!url.searchParams.has("uselibpqcompat")) url.searchParams.set("uselibpqcompat", "true");
+  return url.toString();
 }
 
 // Next.js hot-reloads modules in dev, which would otherwise open a new pool
@@ -13,8 +27,7 @@ declare global {
 export const pool =
   global.__pgPool ??
   new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
+    connectionString: connectionString(),
     max: 8,
   });
 

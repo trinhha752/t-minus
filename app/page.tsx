@@ -14,7 +14,7 @@ const DEMO_STATIONS = [
 export default function MapPage() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-6">
-      <h1 className="text-2xl font-bold">Enchanted T</h1>
+      <h1 className="text-2xl font-bold">T-Minus</h1>
       <BossBar />
       <TMap />
       <ul className="flex flex-col gap-2">

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Enchanted T",
+  title: "T-Minus",
   description: "Every station is a level, every delay is a boss fight.",
 };
 

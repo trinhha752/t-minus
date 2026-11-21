@@ -1,4 +1,4 @@
-# Enchanted T
+# T-Minus
 
 Every station is a level, every delay is a boss fight. BostonHacks 2026, Transit Gamification track.
 

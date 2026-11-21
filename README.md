@@ -1,6 +1,6 @@
 # T-Minus
 
-Every station is a level, every delay is a boss fight. BostonHacks 2026, Transit Gamification track.
+A pixel-art game where the real MBTA is the world: every station is a level, every real delay is a boss fight. BostonHacks 2026, Transit Gamification track.
 
 ## Run it
 
@@ -20,50 +20,74 @@ npm run dev                  # http://localhost:3000
 
 | Who | Role | Owns |
 |---|---|---|
-| Trinh | **Backend + AI**: MBTA data, Tiger Data, the boss pipeline, Mastra characters, deploy | `lib/`, `scripts/`, `mastra/`, all of `app/api/`, `data/stations.json`, Vultr + domain |
-| | **World + run flow**: the map, greeting and check-in, results screen, card reveal and album | `components/TMap.tsx`, `components/cards/`, `app/page.tsx`, `app/station/`, `app/profile/`, `app/login/`, `data/t-map.svg`, art in `public/` |
-| | **Game feel + boss**: juice layer, trivia screen, staked guess, boss takeover | `app/game-feel.css`, `lib/juice/` (shared hooks and sounds), `components/TriviaRound.tsx`, `components/GuessGame.tsx`, `components/BossBar.tsx`, `components/boss/`, `app/leaderboard/` |
+| Trinh | **Backend + AI**: MBTA data, Tiger Data, the boss pipeline, Mastra characters, deploy | `lib/`, `scripts/`, `mastra/`, all of `app/api/`, `data/`, Vultr + domain |
+| | **World**: the overworld (Phaser) and the station levels | `game/` (Phaser scenes), `app/play/`, `components/run/stations.ts`, art in `public/` |
+| | **Bosses + game feel**: Delay Boss arena, End Boss, juice, and the screens between levels (results, cards, menus) | `components/run/` (except `stations.ts`), `components/cards/`, `app/(game)/`, `app/globals.css` |
 
 `types.ts` is edited by the Backend + AI owner only. Ping the chat if you need a shape changed.
 
 ## What we're building
 
-A ride is a **run**, not a dashboard. Every screen leads with an action; the numbers sit around the edges.
+**T-Minus is a game, not an app.** You control something in real time, you can fail, and you get better. The hook nobody else has: **the real T is the world.**
 
-**Greet → Check in → Lock a guess (Safe or All In) → Play the wait → Train arrives → Results → Card reveal**
+- **Overworld:** drive your train car along the real T lines on a pixel map. Real trains, live from the MBTA, move on the same tracks. It's a playable overworld, not a free-roam open world: movement follows the lines.
+- **Stations are levels:** stop at a station for a 30–60s arcade level from its history (swim the herring run at Alewife, dig the 1897 tunnel at Park Street). Real-time, and you can lose. Three level types, each reskinned per station, not 20 separate games.
+- **Delays are bosses:** when a real line runs late, a Delay Boss appears on it in the world. Everyone on that line fights it together: dodge its attacks, answer trivia to charge your hits, one shared HP bar.
+- **Each line ends in an End Boss:** a multi-phase fight, made easier by the Signal Shards from Delay Bosses you helped beat.
+- **Your real wait is the timer:** the time until your train arrives sets how long you get to play.
 
-- The **map** is the world map between runs. It is not the home screen.
-- A **Delay Boss** takes over the whole screen: the screen dims, the boss slides in with a taunt, and each answer chips its HP.
-- **Game feel is a requirement:** sounds, points that fly up, trains that slide, HP bars that flash, a shake on wrong answers. CSS transitions and keyframes only: no 3D, Lottie, or page transitions.
-- Test it at 3 am: cover every number on the screen. If tapping still feels good, it's a game.
+**Look:** pixel art (Phaser for gameplay, React for menus and screens between levels). Use free CC0 packs from [Kenney.nl](https://kenney.nl/assets) rather than drawing everything. Game feel is a requirement: hit-stop, screen shake, flashing HP bars, sounds.
+
+### The 2-hour test (decide by 8:00 pm Saturday)
+
+Before rebuilding anything, prove the overworld works: a `/play` page with a pixel T map in Phaser, your car moving along the Red Line with the arrow keys, and real trains from `/api/trains`.
+
+- **Works and feels fun by 8:00 pm:** commit to the game. Port mini-games into Phaser levels one at a time; the current screens become the menus around it.
+- **Fighting us:** drop it. Keep the current screens and polish their game feel. We lose 2 hours, not the weekend.
 
 ### Priorities (cut from the bottom)
 
-1. Juice layer (Game feel, first, because everyone uses it)
-2. Run flow: greet → check in → trivia → results (World + Game feel)
-3. Live MBTA data plus the boss pipeline: Tiger Data detects the delay → Mastra/Gemini names the boss → it takes over the screen (Backend + Game feel)
-4. Station cards: flip reveal with a rarity tier, plus an album (World)
-5. Staked guess: Safe or All In (Game feel)
-6. Daily quest from the station character (Backend)
-7. Stretch: one station mini-game, the forecast screen
+1. Overworld with real trains, and your car moving on it (World)
+2. One level type, reskinned across a chapter's stations (World)
+3. Delay Boss arena: a real delay spawns it, shared HP (Bosses + Backend)
+4. End Boss at the end of the Red Line (Bosses)
+5. Results and card reveal between levels (Bosses)
+6. Two more level types (World)
+7. Stretch: a voxel 3D map, AI boss names and taunts, the arrival guess
 
-Cut entirely: Solana, real email auth (type a name and pick a line instead), AR.
-
-### First checkpoint
-
-- **Backend + AI:** MBTA proxy is live, the poller writes to Tiger Data, and `/api/trains` and `/api/boss` return real data.
-- **World:** SVG map with all four lines and the 5 demo stations, trains rendered from `/api/trains` (mock is fine).
-- **Game feel:** the juice layer (sound helper, `usePointsBurst`, shake and flash classes) plus a full-screen trivia card that uses it.
+Cut entirely: Solana, real email auth (type a name and pick a line instead), AR, free-roam open world.
 
 ## What to build next (per role)
 
 The backend is live on `main`. Open <http://localhost:3000/dev> to see every route working, then build against the real routes below. You need `DATABASE_URL` and `MBTA_API_KEY` in `.env.local`; ask Trinh for them by DM.
 
-### Mini-games
+### World: the overworld
+
+Station positions and track paths are already computed. Don't hand-place them; read `data/map-layout.json` and draw it in Phaser:
+
+```ts
+import layout from "@/data/map-layout.json";
+import { project } from "@/lib/map-projection";
+
+layout.viewBox;                  // "0 0 1000 1000", north is up
+layout.paths["Red"];             // [[...Ashmont branch ids], [...Braintree branch ids]], in order
+layout.paths["Green-B"];         // every route is an array of branches; draw one polyline per branch
+layout.stations["place-pktrm"];  // { name, routes, x, y }
+project(layout.projection, train.lat, train.lon); // live trains from /api/trains -> same x/y space
+```
+
+- Downtown is spread out automatically, so Park Street to Downtown Crossing is about 17px apart on a 390px phone. Regenerate with `npm run build:map`.
+- **Tapping:** some stops are still about 4px apart, such as the street-level Green Line stops (BU Central and BU East). Don't give each dot its own small hit area. Put one tap handler on the board and pick the **nearest station within about 22px**. Add pinch-to-zoom if there's time.
+- **Stamped stations:** use `stampedStationIds` from `GET /api/me`. A station counts as stamped once the rider has checked in there or cleared its mini-game.
+- **Trains:** poll `GET /api/trains?line=all` every 15s. Key each sprite by `train.id` and tween it over about 10s to its new position, so trains glide between polls instead of jumping.
+- Line colors: Red `#DA291C`, Orange `#ED8B00`, Blue `#2B6CE8`, Green `#00B04F`.
+- Stretch: a voxel 3D map (react-three-fiber, rendered at low resolution with `image-rendering: pixelated`), behind `NEXT_PUBLIC_MAP_3D=1` and off by default. If it isn't working by 11pm, leave it off.
+
+### World: station levels
 
 Stations, games and chapters come from **`components/run/stations.ts`**, the UI's own file. The backend reads it directly, so there's one list. Add, rename or reorder stations there; each chapter (`red`, `green`) is a line in `ROUTES`, and its final boss waits at the last station. If you add a station, also add its MBTA id to `data/station-ids.json`, or `npm test` fails.
 
-When a game ends, report the result once:
+When a level ends (from Phaser or React), report the result once:
 
 ```ts
 const res = await fetch("/api/minigame/result", {
@@ -81,30 +105,7 @@ const res = await fetch("/api/minigame/result", {
 - Points are awarded for the first clear per station per day. Replays are allowed but earn 0, so say "practice run" in the UI rather than showing +0.
 - Clearing Park Street counts for both chapters.
 
-### UI: map
-
-Station positions are already computed. Don't hand-place them; read `data/map-layout.json`:
-
-```ts
-import layout from "@/data/map-layout.json";
-import { project } from "@/lib/map-projection";
-
-layout.viewBox;                  // "0 0 1000 1000", north is up
-layout.paths["Red"];             // [[...Ashmont branch ids], [...Braintree branch ids]], in order
-layout.paths["Green-B"];         // every route is an array of branches; draw one polyline per branch
-layout.stations["place-pktrm"];  // { name, routes, x, y }
-project(layout.projection, train.lat, train.lon); // live trains from /api/trains -> same x/y space
-```
-
-- Downtown is spread out automatically, so Park Street to Downtown Crossing is about 17px apart on a 390px phone. Regenerate with `npm run build:map`.
-- **Tapping:** some stops are still about 4px apart, such as the street-level Green Line stops (BU Central and BU East). Don't give each dot its own small hit area. Put one tap handler on the board and pick the **nearest station within about 22px**. Add pinch-to-zoom if there's time.
-- **Stamped stations:** use `stampedStationIds` from `GET /api/me`. A station counts as stamped once the rider has checked in there or cleared its mini-game.
-- **Trains:** poll `GET /api/trains?line=all` every 15s. Move each train with `transform: translate(x, y)` and `key={train.id}`, with a transition of about 10s, so trains glide between polls instead of jumping. Don't animate SVG `cx`/`cy`; it's unreliable on iPhone Safari.
-- **Tilted 3D board:** `translateZ` and `preserve-3d` do nothing on elements inside an `<svg>`. Draw only the line paths in SVG. Put station dots, trains and the boss banner in an absolutely positioned HTML layer on top, so they can lift off the board.
-- Line colors: Red `#DA291C`, Orange `#ED8B00`, Blue `#2B6CE8`, Green `#00B04F`.
-- Optional: if you build a 3D map (react-three-fiber), give it the same props as the 2D map and keep it behind `NEXT_PUBLIC_MAP_3D=1`, off by default. If it isn't working by 11pm, leave it off.
-
-### UI: chapters and bosses
+### Bosses and screens
 
 | Screen | Route | Notes |
 |---|---|---|

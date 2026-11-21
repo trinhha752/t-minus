@@ -1,16 +1,16 @@
-// Owner: Backend. MOCK — resolve once the target arrival has happened.
+// MOCK — resolve once the target arrival has happened.
 // The client polls this every 10 seconds until resolved is true.
 import type { NextRequest } from "next/server";
-import type { GuessStatus } from "@/types";
+import type { Guess } from "@/types";
 import { ok } from "@/lib/respond";
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { id } = await params;
-  const status: GuessStatus = {
-    guessId: id,
+export async function GET(_request: NextRequest, ctx: RouteContext<"/api/guess/[id]">) {
+  const { id } = await ctx.params;
+  const status: Guess = {
+    id,
+    stationId: "place-pktrm",
+    guessMinutes: 4,
+    targetArrivalIso: new Date(Date.now() + 4 * 60_000).toISOString(),
     resolved: false,
     actualMinutes: null,
     pointsEarned: null,

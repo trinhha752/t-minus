@@ -6,16 +6,30 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:schema": "tsx --env-file=.env.local scripts/apply-schema.ts",
+    "sql": "tsx --env-file=.env.local scripts/sql.ts",
+    "seed:stations": "tsx --env-file=.env.local scripts/seed-stations.ts",
+    "seed:trivia": "tsx --env-file=.env.local scripts/seed-trivia.ts",
+    "poll": "tsx --env-file=.env.local scripts/poll-predictions.ts",
+    "smoke:mbta": "tsx --env-file=.env.local scripts/smoke-mbta.ts",
+    "boss:fake": "tsx --env-file=.env.local scripts/fake-boss.ts",
+    "boss:kill": "tsx --env-file=.env.local scripts/kill-boss.ts",
+    "seed:fallback": "tsx --env-file=.env.local scripts/save-fallback.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "test:api": "tsx scripts/test-api.ts"
   },
   "dependencies": {
     "next": "16.4.6",
+    "pg": "^8.23.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

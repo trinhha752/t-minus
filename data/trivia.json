@@ -1,0 +1,131 @@
+[
+  {
+    "id": "pktrm-1",
+    "stationId": "place-pktrm",
+    "question": "Park Street is a transfer point between which two lines?",
+    "options": ["Red and Green", "Red and Orange", "Green and Blue", "Orange and Blue"],
+    "answerIndex": 0,
+    "explanation": "Park Street is where the Red and Green lines meet under Boston Common.",
+    "sourceUrl": "https://www.mbta.com/stops/place-pktrm",
+    "verified": false
+  },
+  {
+    "id": "pktrm-2",
+    "stationId": "place-pktrm",
+    "question": "The tunnel beneath Park Street, opened in 1897, is often called the first of its kind in which country?",
+    "options": ["Canada", "The United States", "Mexico", "The United Kingdom"],
+    "answerIndex": 1,
+    "explanation": "The Tremont Street subway is widely described as the first subway tunnel in the United States.",
+    "sourceUrl": "https://en.wikipedia.org/wiki/Tremont_Street_subway",
+    "verified": false
+  },
+  {
+    "id": "pktrm-3",
+    "stationId": "place-pktrm",
+    "question": "Which park sits directly above Park Street station?",
+    "options": ["Boston Common", "The Public Garden", "Franklin Park", "The Esplanade"],
+    "answerIndex": 0,
+    "explanation": "Park Street station sits at the edge of Boston Common.",
+    "sourceUrl": "https://www.mbta.com/stops/place-pktrm",
+    "verified": false
+  },
+
+  {
+    "id": "bucen-1",
+    "stationId": "place-bucen",
+    "question": "Which Green Line branch serves BU Central?",
+    "options": ["B", "C", "D", "E"],
+    "answerIndex": 0,
+    "explanation": "BU Central is a stop on the Green Line B branch.",
+    "sourceUrl": "https://www.mbta.com/stops/place-bucen",
+    "verified": false
+  },
+  {
+    "id": "bucen-2",
+    "stationId": "place-bucen",
+    "question": "BU Central sits along which avenue?",
+    "options": ["Commonwealth Avenue", "Beacon Street", "Huntington Avenue", "Massachusetts Avenue"],
+    "answerIndex": 0,
+    "explanation": "The B branch runs down the middle of Commonwealth Avenue through the BU campus.",
+    "sourceUrl": "https://www.mbta.com/stops/place-bucen",
+    "verified": false
+  },
+  {
+    "id": "bucen-3",
+    "stationId": "place-bucen",
+    "question": "Which western terminus does the Green Line B branch run toward?",
+    "options": ["Boston College", "Cleveland Circle", "Riverside", "Heath Street"],
+    "answerIndex": 0,
+    "explanation": "The B branch runs west to Boston College. C goes to Cleveland Circle, D to Riverside, E to Heath Street.",
+    "sourceUrl": "https://www.mbta.com/schedules/Green-B",
+    "verified": false
+  },
+
+  {
+    "id": "harsq-1",
+    "stationId": "place-harsq",
+    "question": "Which line serves Harvard station?",
+    "options": ["Red", "Orange", "Green", "Blue"],
+    "answerIndex": 0,
+    "explanation": "Harvard is a Red Line station.",
+    "sourceUrl": "https://www.mbta.com/stops/place-harsq",
+    "verified": false
+  },
+  {
+    "id": "harsq-2",
+    "stationId": "place-harsq",
+    "question": "Harvard station is in which city?",
+    "options": ["Cambridge", "Boston", "Somerville", "Brookline"],
+    "answerIndex": 0,
+    "explanation": "Harvard station is in Cambridge, across the river from Boston.",
+    "sourceUrl": "https://www.mbta.com/stops/place-harsq",
+    "verified": false
+  },
+
+  {
+    "id": "aqucl-1",
+    "stationId": "place-aqucl",
+    "question": "Which line serves Aquarium station?",
+    "options": ["Blue", "Green", "Red", "Orange"],
+    "answerIndex": 0,
+    "explanation": "Aquarium is a Blue Line station on the waterfront.",
+    "sourceUrl": "https://www.mbta.com/stops/place-aqucl",
+    "verified": false
+  },
+  {
+    "id": "aqucl-2",
+    "stationId": "place-aqucl",
+    "question": "Which waterfront attraction gives Aquarium station its name?",
+    "options": [
+      "The New England Aquarium",
+      "The Boston Tea Party Ships",
+      "The Institute of Contemporary Art",
+      "The Boston Harbor Islands visitor centre"
+    ],
+    "answerIndex": 0,
+    "explanation": "The station is named for the New England Aquarium, which is a short walk away.",
+    "sourceUrl": "https://www.mbta.com/stops/place-aqucl",
+    "verified": false
+  },
+
+  {
+    "id": "chncl-1",
+    "stationId": "place-chncl",
+    "question": "Which line serves Chinatown station?",
+    "options": ["Orange", "Red", "Blue", "Green"],
+    "answerIndex": 0,
+    "explanation": "Chinatown is an Orange Line station.",
+    "sourceUrl": "https://www.mbta.com/stops/place-chncl",
+    "verified": false
+  },
+  {
+    "id": "chncl-2",
+    "stationId": "place-chncl",
+    "question": "What kind of structure marks the traditional entrance to Boston's Chinatown?",
+    "options": ["A paifang gate", "A clock tower", "A stone bridge", "A fountain"],
+    "answerIndex": 0,
+    "explanation": "The Chinatown Gate is a paifang, a traditional Chinese archway.",
+    "sourceUrl": "https://en.wikipedia.org/wiki/Chinatown,_Boston",
+    "verified": false
+  }
+]

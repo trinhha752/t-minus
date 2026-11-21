@@ -4,7 +4,8 @@
 // the backend working before the real screens exist. Safe to delete later.
 
 import { useCallback, useEffect, useState } from "react";
-import type { Arrival, BossState, FinalBossAnswerResult, FinalBossFight, Progress } from "@/types";
+import type { Arrival, BossState, FinalBossAnswerResult, FinalBossFight, Progress, TeamLine } from "@/types";
+import PhotoQuest from "@/components/PhotoQuest";
 
 type Api<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -42,6 +43,8 @@ export default function DevConsole() {
   const [log, setLog] = useState<string[]>([]);
   const [shake, setShake] = useState(false);
   const [qi, setQi] = useState(0);
+  const [questLine, setQuestLine] = useState<TeamLine | null>(null);
+  const [stamp, setStamp] = useState<string | null>(null);
 
   const say = (line: string) =>
     setLog((l) => [`${new Date().toLocaleTimeString()}  ${line}`, ...l].slice(0, 12));
@@ -288,6 +291,34 @@ export default function DevConsole() {
             })()
           )}
         </section>
+      )}
+
+      {/* Photo quest */}
+      <section className="flex flex-col gap-3">
+        <h2 className="font-semibold">Photo quest · Gemini Vision</h2>
+        <div className="flex flex-wrap gap-2">
+          {(["Red", "Orange", "Blue", "Green"] as TeamLine[]).map((l) => (
+            <button key={l} onClick={() => setQuestLine(l)} className="rounded border px-3 py-1 text-sm active:scale-95">
+              Start on {l}
+            </button>
+          ))}
+        </div>
+        {stamp && (
+          // eslint-disable-next-line @next/next/no-img-element -- camera data: URL
+          <img src={stamp} alt="Last photo stamp" className="h-40 w-32 rounded border object-cover" />
+        )}
+      </section>
+      {questLine && (
+        <PhotoQuest
+          stationName="Park Street"
+          line={questLine}
+          onClose={() => setQuestLine(null)}
+          onComplete={({ passed, dataUrl }) => {
+            setQuestLine(null);
+            if (dataUrl) setStamp(dataUrl);
+            say(`📸 photo quest ${passed ? "passed" : "closed"}${dataUrl ? "" : " (no photo)"}`);
+          }}
+        />
       )}
 
       {/* Log */}

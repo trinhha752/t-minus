@@ -1,9 +1,12 @@
 // GET /api/progress -> every chapter with cleared stations, boss state, and active buffs.
+import { connection } from "next/server";
 import { getProgress } from "@/lib/progress";
 import { currentUserId } from "@/lib/session";
 import { fail, ok } from "@/lib/respond";
 
 export async function GET() {
+  // Reads the rider cookie: always run per request, never prerender.
+  await connection();
   try {
     return ok(await getProgress(await currentUserId()));
   } catch (e) {

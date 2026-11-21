@@ -2,50 +2,44 @@
 // Progression: stations are levels, each chapter ends in a final boss, and
 // buffs from delay (mini) bosses make that final fight easier.
 //
-// Chapters are data, in data/chapters.json: add or reorder stations there,
-// no code change needed. Every station id in it must exist in `stations`.
+// Chapters come from the UI's components/run/stations.ts via lib/chapters.ts.
+// Both bosses are trivia fights: answers are checked here, never in the browser.
 
 import { randomUUID } from "node:crypto";
-import chaptersJson from "../data/chapters.json";
-import { one, q, tx } from "./db";
+import { q, tx } from "./db";
+import { CHAPTERS, chapterById, toMbtaId, type ChapterDef } from "./chapters";
+import { answerFor, questionsForStations } from "./trivia";
 import {
   BUFF_DAMAGE_BONUS,
   BUFF_LIFETIME_HOURS,
-  FINAL_BOSS_DAMAGE_PER_HIT,
-  FINAL_BOSS_HIT_COOLDOWN_MS,
+  FINAL_BOSS_ANSWER_COOLDOWN_MS,
+  FINAL_BOSS_DEMO_HP,
   FINAL_BOSS_HP,
   MAX_DAMAGE_MULTIPLIER,
   MINIGAME_MAX_SCORE,
   MINIGAME_MIN_CLEAR_MS,
   POINTS,
+  comboDamage,
 } from "./scoring";
 import type {
   Buff,
   Chapter,
+  FinalBossAnswerResult,
   FinalBossFight,
-  FinalBossHitResult,
-  GameEngine,
   MiniGameResult,
   MiniGameResultRequest,
   Progress,
   TeamLine,
+  TriviaQuestion,
 } from "../types";
 
-interface ChapterDef {
-  id: string;
-  name: string;
-  line: TeamLine;
-  bossStationId: string;
-  bossName: string;
-  stations: { stationId: string; gameId: string; engine: GameEngine }[];
-}
+export { CHAPTERS };
 
-export const CHAPTERS = chaptersJson as ChapterDef[];
+/** How many questions a final boss fight draws. The UI cycles through them. */
+const FIGHT_QUESTIONS = 20;
 
 /** A rule broken by the request, as opposed to a server fault. Routes send these as 400s. */
 export class GameRuleError extends Error {}
-
-const chapterById = (id: string) => CHAPTERS.find((c) => c.id === id) ?? null;
 
 /** Boston local date, so "once a day" means a Boston day. */
 const BOSTON_DAY = `(created_at AT TIME ZONE 'America/New_York')::date`;
@@ -56,16 +50,15 @@ export async function recordMiniGame(
   userId: string,
   body: MiniGameResultRequest
 ): Promise<MiniGameResult> {
-  const station = await one<{ id: string }>(`SELECT id FROM stations WHERE id = $1`, [
-    body.stationId,
-  ]);
-  if (!station) throw new GameRuleError("unknown station");
-
-  // The game must be the one this station runs in some chapter, or it does not count.
-  const inChapter = CHAPTERS.some((c) =>
-    c.stations.some((s) => s.stationId === body.stationId && s.gameId === body.gameId)
-  );
-  if (!inChapter) throw new GameRuleError("that game is not played at this station");
+  const stationId = toMbtaId(String(body.stationId ?? ""));
+  const entry = stationId
+    ? CHAPTERS.flatMap((c) => c.stations).find((s) => s.stationId === stationId)
+    : undefined;
+  if (!stationId || !entry) throw new GameRuleError("unknown station");
+  // gameId is optional; if sent it must be this station's game.
+  if (body.gameId !== undefined && body.gameId !== entry.gameId) {
+    throw new GameRuleError(`that game is not played here (this station plays "${entry.gameId}")`);
+  }
 
   const score = Math.max(0, Math.min(MINIGAME_MAX_SCORE, Math.round(Number(body.score) || 0)));
   const durationMs = Math.max(0, Math.round(Number(body.durationMs) || 0));
@@ -80,7 +73,7 @@ export async function recordMiniGame(
     `SELECT bool_or(cleared) AS ever,
             bool_or(cleared AND ${BOSTON_DAY} = (now() AT TIME ZONE 'America/New_York')::date) AS today
        FROM minigame_runs WHERE user_id = $1 AND station_id = $2`,
-    [userId, body.stationId]
+    [userId, stationId]
   );
 
   const pointsEarned = cleared && !prior?.today ? POINTS.minigameClear : 0;
@@ -90,7 +83,7 @@ export async function recordMiniGame(
     `INSERT INTO minigame_runs
        (id, user_id, station_id, game_id, score, cleared, duration_ms, points_earned)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [runId, userId, body.stationId, body.gameId, score, cleared, durationMs, pointsEarned]
+    [runId, userId, stationId, entry.gameId, score, cleared, durationMs, pointsEarned]
   );
   if (pointsEarned) {
     await q(`UPDATE users SET points = points + $2 WHERE id = $1`, [userId, pointsEarned]);
@@ -155,13 +148,6 @@ async function activeBuffs(userId: string): Promise<Buff[]> {
 export async function getProgress(userId: string): Promise<Progress> {
   const cleared = await clearedStations(userId);
 
-  const ids = [...new Set(CHAPTERS.flatMap((c) => c.stations.map((s) => s.stationId)))];
-  const names = new Map(
-    (await q<{ id: string; name: string }>(`SELECT id, name FROM stations WHERE id = ANY($1)`, [
-      ids,
-    ])).map((r) => [r.id, r.name])
-  );
-
   const fights = await q<{ id: string; chapter_id: string; defeated: boolean; ended_at: Date | null }>(
     `SELECT id, chapter_id, defeated, ended_at FROM final_boss_fights WHERE user_id = $1`,
     [userId]
@@ -177,9 +163,11 @@ export async function getProgress(userId: string): Promise<Progress> {
       bossName: c.bossName,
       stations: c.stations.map((s) => ({
         stationId: s.stationId,
-        name: names.get(s.stationId) ?? s.stationId,
+        slug: s.slug,
+        name: s.name,
         gameId: s.gameId,
-        engine: s.engine,
+        title: s.title,
+        genre: s.genre,
         cleared: cleared.has(s.stationId),
         bestScore: cleared.get(s.stationId) ?? null,
       })),
@@ -192,20 +180,23 @@ export async function getProgress(userId: string): Promise<Progress> {
   return { chapters, buffs: await activeBuffs(userId) };
 }
 
-/* ---------- final boss ---------- */
+/* ---------- final boss: a solo trivia fight ---------- */
 
 interface FightRow {
   id: string;
+  user_id: string;
   chapter_id: string;
   hp_total: number;
   hp_remaining: number;
   damage_multiplier: string;
+  combo: number;
   defeated: boolean;
   started_at: Date;
+  last_hit_at: Date | null;
   ended_at: Date | null;
 }
 
-function toFight(r: FightRow): FinalBossFight {
+function toFight(r: FightRow, questions: TriviaQuestion[]): FinalBossFight {
   return {
     id: String(r.id),
     chapterId: r.chapter_id,
@@ -213,18 +204,26 @@ function toFight(r: FightRow): FinalBossFight {
     hpTotal: r.hp_total,
     hpRemaining: r.hp_remaining,
     damageMultiplier: Number(r.damage_multiplier),
+    combo: r.combo,
     defeated: r.defeated,
     startedAt: r.started_at.toISOString(),
     endedAt: r.ended_at?.toISOString() ?? null,
+    questions,
   };
 }
+
+const chapterStationIds = (c: ChapterDef) => [...new Set(c.stations.map((s) => s.stationId))];
 
 /**
  * Start (or resume) this rider's fight with a chapter's final boss.
  * Spends every active buff on it: each adds BUFF_DAMAGE_BONUS to the damage
- * multiplier, capped at MAX_DAMAGE_MULTIPLIER.
+ * multiplier, capped at MAX_DAMAGE_MULTIPLIER. demo=true gives 300 HP, not 1000.
  */
-export async function startFinalBoss(userId: string, chapterId: string): Promise<FinalBossFight> {
+export async function startFinalBoss(
+  userId: string,
+  chapterId: string,
+  demo = false
+): Promise<FinalBossFight> {
   const chapter = chapterById(chapterId);
   if (!chapter) throw new GameRuleError("unknown chapter");
 
@@ -233,13 +232,16 @@ export async function startFinalBoss(userId: string, chapterId: string): Promise
     throw new GameRuleError("clear every station in this chapter first");
   }
 
+  const questions = await questionsForStations(chapterStationIds(chapter), FIGHT_QUESTIONS);
+  if (!questions.length) throw new GameRuleError("no verified questions for this chapter yet");
+
   return tx(async (c) => {
     const open = await c.query<FightRow>(
       `SELECT * FROM final_boss_fights
         WHERE user_id = $1 AND chapter_id = $2 AND ended_at IS NULL`,
       [userId, chapterId]
     );
-    if (open.rows[0]) return toFight(open.rows[0]);
+    if (open.rows[0]) return toFight(open.rows[0], questions);
 
     const buffs = await c.query<{ id: string; value: string }>(
       `SELECT id, value FROM buffs
@@ -249,11 +251,12 @@ export async function startFinalBoss(userId: string, chapterId: string): Promise
     );
     const bonus = buffs.rows.reduce((sum, b) => sum + Number(b.value), 0);
     const multiplier = Math.min(MAX_DAMAGE_MULTIPLIER, 1 + bonus);
+    const hp = demo ? FINAL_BOSS_DEMO_HP : FINAL_BOSS_HP;
 
     const fight = await c.query<FightRow>(
       `INSERT INTO final_boss_fights (user_id, chapter_id, hp_total, hp_remaining, damage_multiplier)
        VALUES ($1, $2, $3, $3, $4) RETURNING *`,
-      [userId, chapterId, FINAL_BOSS_HP, multiplier]
+      [userId, chapterId, hp, multiplier]
     );
     if (buffs.rows.length) {
       await c.query(`UPDATE buffs SET used_in_fight_id = $1 WHERE id = ANY($2)`, [
@@ -261,40 +264,54 @@ export async function startFinalBoss(userId: string, chapterId: string): Promise
         buffs.rows.map((b) => b.id),
       ]);
     }
-    return toFight(fight.rows[0]);
+    return toFight(fight.rows[0], questions);
   });
 }
 
 /**
- * One landed attack on a final boss. Locked so a double-tap cannot land
- * two killing blows, and rate-limited per fight.
+ * One answer in a final boss fight. Right: damage with combo and buffs.
+ * Wrong: combo resets (hearts are tracked by the UI). Locked so a double-tap
+ * cannot land two killing blows, and rate-limited per fight.
  */
-export async function hitFinalBoss(userId: string, fightId: string): Promise<FinalBossHitResult> {
+export async function answerFinalBoss(
+  userId: string,
+  fightId: string,
+  questionId: string,
+  choiceIndex: number
+): Promise<FinalBossAnswerResult> {
+  const question = await answerFor(questionId);
+  if (!question) throw new GameRuleError("unknown question");
+
   return tx(async (c) => {
-    const { rows } = await c.query<FightRow & { user_id: string; last_hit_at: Date | null }>(
+    const { rows } = await c.query<FightRow>(
       `SELECT * FROM final_boss_fights WHERE id = $1 FOR UPDATE`,
       [fightId]
     );
     const fight = rows[0];
     if (!fight || fight.user_id !== userId) throw new GameRuleError("unknown fight");
     if (fight.ended_at) throw new GameRuleError("this fight is over");
-    if (fight.last_hit_at && Date.now() - fight.last_hit_at.getTime() < FINAL_BOSS_HIT_COOLDOWN_MS) {
+    if (fight.last_hit_at && Date.now() - fight.last_hit_at.getTime() < FINAL_BOSS_ANSWER_COOLDOWN_MS) {
       throw new GameRuleError("too fast");
     }
+    const chapter = chapterById(fight.chapter_id);
+    if (!chapter || !chapterStationIds(chapter).includes(question.station_id)) {
+      throw new GameRuleError("that question is not part of this fight");
+    }
 
-    const damage = Math.min(
-      fight.hp_remaining,
-      Math.round(FINAL_BOSS_DAMAGE_PER_HIT * Number(fight.damage_multiplier))
-    );
+    const correct = choiceIndex === question.answer_index;
+    const damage = correct
+      ? Math.min(fight.hp_remaining, comboDamage(fight.combo, Number(fight.damage_multiplier)))
+      : 0;
+    const combo = correct ? fight.combo + 1 : 0;
     const hpRemaining = fight.hp_remaining - damage;
     const defeated = hpRemaining <= 0;
 
     await c.query(
       `UPDATE final_boss_fights
-          SET hp_remaining = $2, last_hit_at = now(), defeated = $3,
-              ended_at = CASE WHEN $3 THEN now() ELSE NULL END
+          SET hp_remaining = $2, combo = $3, last_hit_at = now(), defeated = $4,
+              ended_at = CASE WHEN $4 THEN now() ELSE NULL END
         WHERE id = $1`,
-      [fight.id, hpRemaining, defeated]
+      [fight.id, hpRemaining, combo, defeated]
     );
 
     let pointsEarned = 0;
@@ -304,12 +321,33 @@ export async function hitFinalBoss(userId: string, fightId: string): Promise<Fin
       await c.query(
         `INSERT INTO badges (user_id, type, label) VALUES ($1, 'boss', $2)
          ON CONFLICT DO NOTHING`,
-        [userId, `Defeated ${chapterById(fight.chapter_id)?.bossName ?? "the boss"}`]
+        [userId, `Defeated ${chapter.bossName}`]
       );
     }
 
-    return { damage, hpRemaining, defeated, pointsEarned };
+    return {
+      correct,
+      correctIndex: question.answer_index,
+      explanation: question.explanation,
+      damage,
+      combo,
+      hpRemaining,
+      defeated,
+      pointsEarned,
+    };
   });
+}
+
+/** Out of hearts, or walked away. Ends the fight without a win; the next start is a fresh boss. */
+export async function forfeitFinalBoss(userId: string, fightId: string): Promise<FinalBossFight> {
+  const [row] = await q<FightRow>(
+    `UPDATE final_boss_fights SET ended_at = now()
+      WHERE id = $1 AND user_id = $2 AND ended_at IS NULL
+      RETURNING *`,
+    [fightId, userId]
+  );
+  if (!row) throw new GameRuleError("no open fight with that id");
+  return toFight(row, []);
 }
 
 /* ---------- buffs, granted from lib/boss.ts ---------- */

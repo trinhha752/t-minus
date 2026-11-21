@@ -61,23 +61,25 @@ The backend is live on `main`. Open <http://localhost:3000/dev> to see every rou
 
 ### Mini-games
 
+Stations, games and chapters come from **`components/run/stations.ts`**, the UI's own file. The backend reads it directly, so there's one list. Add, rename or reorder stations there; each chapter (`red`, `green`) is a line in `ROUTES`, and its final boss waits at the last station. If you add a station, also add its MBTA id to `data/station-ids.json`, or `npm test` fails.
+
 When a game ends, report the result once:
 
 ```ts
 const res = await fetch("/api/minigame/result", {
   method: "POST",
   headers: { "content-type": "application/json" },
-  body: JSON.stringify({ stationId: "place-boyls", gameId: "rooftop-run", score: 420, cleared: true, durationMs: 30000 }),
+  body: JSON.stringify({ stationId: "alewife", score: 420, cleared: true, durationMs: 30000 }),
 }).then((r) => r.json());
 // res.data = { runId, pointsEarned, stationCleared, chapterBossUnlocked }
-// chapterBossUnlocked is a chapter id (e.g. "green-trunk") when this clear unlocked a final boss: show the unlock moment.
+// chapterBossUnlocked is "red" or "green" when this clear unlocked that final boss: show the unlock moment.
 ```
 
-- `stationId` and `gameId` must be a pair from `data/chapters.json`. Any other pair gets a 400. To add or rename a game, ask Trinh to update that file.
+- `stationId` is your slug (`"alewife"`) or the MBTA id (`"place-alfcl"`). Both work everywhere.
+- `gameId` is optional. If you send it, it must be the kebab-case game title (`"fish-run"`, `"rindges-gift"`), or you get a 400.
 - A cleared run must last at least 3s (`durationMs >= 3000`), or it's rejected as fake. Scores are capped at 10,000.
 - Points are awarded for the first clear per station per day. Replays are allowed but earn 0, so say "practice run" in the UI rather than showing +0.
-- Build each **engine** once (`GameEngine` in `types.ts`: timing, memory, pick-the-lie, rhythm, dodge, runner, puzzle) and reskin it per station. One finished engine beats four half-built games.
-- Suggested order: `rooftop-run` (runner) first, then a second station on the same engine.
+- Clearing Park Street counts for both chapters.
 
 ### UI: map
 
@@ -106,10 +108,11 @@ project(layout.projection, train.lat, train.lon); // live trains from /api/train
 
 | Screen | Route | Notes |
 |---|---|---|
-| Chapter screen | `GET /api/progress` | Stations with `cleared` and `bestScore`, plus `bossUnlocked`, `bossDefeated`, `activeFightId` (resume it), and buffs |
-| Final boss fight | `POST /api/final-boss/start {chapterId}` then `POST /api/final-boss/hit {fightId}` | One hit per 1.5s. Faster hits return **429**: play a "whiff" animation, not an error. `defeated: true` comes with +200 points. |
-| Delay boss takeover | `GET /api/boss` every 15s | `active: true` on a line means a delay boss is up. Show HP from `hpRemaining` and `hpTotal`. Trivia answers damage it. It spawns when half a line's trains are 5+ min late (or the MBTA posts a delay alert), and escapes once fewer than 30% are. |
+| Chapter screen | `GET /api/progress` | Chapters `red` (Scholars' Realm) and `green` (Ancient Tunnels). Each station has `slug`, `title`, `genre`, `cleared`, `bestScore`. Plus `bossUnlocked`, `bossDefeated`, `activeFightId` (resume it), and buffs. |
+| End Boss fight | `POST /api/final-boss/start {chapterId, demo?}` then `POST /api/final-boss/answer {fightId, questionId, choiceIndex}` | Start returns `questions` (no answers): cycle through them. Each answer comes back with `correct`, `correctIndex`, `damage`, `combo`, `hpRemaining`. Damage = 20 × min(combo + 1, 3) × `damageMultiplier`, the same as `hitDamage` in `stats.ts`. HP is 1000, or 300 with `demo: true`. **Hearts and items stay in the UI**: a wrong answer just resets the combo on the server. When hearts run out, call `POST /api/final-boss/forfeit {fightId}`. At most one answer per 1.5s; faster returns **429**. `defeated: true` comes with +200 points. |
+| Delay Boss takeover | `GET /api/boss` every 15s, questions from `GET /api/trivia?line=Red` | `active: true` on a line means a Delay Boss is up. It's **shared**: everyone on the line chips the same HP (200 per active rider, minimum 200). Answers go to `POST /api/trivia/answer`, which returns `bossDamage` (20/40/60 with combo) and `bossHpRemaining`. It spawns when half a line's trains are 5+ min late (or the MBTA posts a delay alert), and escapes once fewer than 30% are. To show one on command: `npm run boss:fake -- --line Red`. |
 | Trivia answer | `POST /api/trivia/answer` | `alreadyAnswered: true` means the rider answered this question today. Show the answer, but it scores nothing and does no boss damage. |
+| Buffs | `GET /api/progress` → `buffs` | Beating a Delay Boss gives every rider who fought it a Signal Shard (+10% damage, lasts 24h). It's spent automatically on the next End Boss fight and shows in `damageMultiplier`. |
 | Arrival guess | `POST /api/guess {stationId, guessMinutes}` then poll `GET /api/guess/:id` every 10s | Locks onto the next train at least 90s out, and follows that train if it slips. When it arrives: `resolved: true` with `actualMinutes` and `pointsEarned` (50 for exact, minus 10 per minute off). If the train is cancelled, `actualMinutes` is null and it scores 0. One open guess per rider: a second one returns **409**. No Safe or All In stake on the server yet. |
 | Leaderboard | `GET /api/leaderboard?scope=line` or `?scope=user` | Teams ranked by total points, or the top 20 riders. `teamTotals` is always included, for coloring the map. Points are all-time, not weekly. |
 | Profile and header | `GET /api/me` | Points, level, streak, badges, stamps |
@@ -119,7 +122,11 @@ Still mock data, with a final shape (build against it now): `/api/chat`.
 
 ### Everyone: not code, but blocking
 
-`data/trivia.json` has 12 questions, all `verified=false`, so none are served and the delay boss can't be fought. Pick a few, check each `sourceUrl`, and tell Trinh which ones are correct. That takes about 20 minutes.
+`data/trivia.json` has 26 questions, including the 14 from `DelayBoss.tsx` and `EndBoss.tsx`, all `verified=false`. **Until some are verified, both bosses have no questions, so they can't be fought.** Pick a few, check each fact against a real source, add the `sourceUrl`, and tell Trinh which are correct. The UI-authored ones don't have sources yet, and the Davis "cattle crossroads" question was flagged as possibly wrong.
+
+For local development before that, add `ALLOW_UNVERIFIED_TRIVIA=1` to `.env.local` to serve unverified questions. It's ignored in production.
+
+**Still open: gold vs points.** The UI uses gold; the backend counts points. Same number for now, so label it however the UI wants.
 
 ## Backend API
 
@@ -150,14 +157,17 @@ curl "localhost:3000/api/trivia?stop=place-pktrm&wait=300"
 curl -c jar.txt -b jar.txt -X POST localhost:3000/api/trivia/answer -H 'content-type: application/json' \
   -d '{"roundId":"<from /api/trivia>","questionId":"pktrm-1","choiceIndex":0}'
 
-# Progression: stations are levels, a final boss ends each chapter (data/chapters.json)
+# Progression: stations are levels, a final boss ends each chapter (components/run/stations.ts)
 curl -c jar.txt -b jar.txt localhost:3000/api/progress
 curl -c jar.txt -b jar.txt -X POST localhost:3000/api/minigame/result -H 'content-type: application/json' \
-  -d '{"stationId":"place-boyls","gameId":"rooftop-run","score":420,"cleared":true,"durationMs":30000}'
+  -d '{"stationId":"alewife","score":420,"cleared":true,"durationMs":30000}'
 curl -c jar.txt -b jar.txt -X POST localhost:3000/api/final-boss/start -H 'content-type: application/json' \
-  -d '{"chapterId":"green-trunk"}'
-curl -c jar.txt -b jar.txt -X POST localhost:3000/api/final-boss/hit -H 'content-type: application/json' \
-  -d '{"fightId":"<id from start>"}'                        # one landed attack; max one per 1.5s
+  -d '{"chapterId":"red","demo":true}'
+curl -c jar.txt -b jar.txt -X POST localhost:3000/api/final-boss/answer -H 'content-type: application/json' \
+  -d '{"fightId":"<id from start>","questionId":"<from start.questions>","choiceIndex":0}'   # max one per 1.5s
+curl -c jar.txt -b jar.txt -X POST localhost:3000/api/final-boss/forfeit -H 'content-type: application/json' \
+  -d '{"fightId":"<id>"}'
+curl "localhost:3000/api/trivia?line=Red"                     # Delay Boss questions for a line
 ```
 
 Still mock (the shape is final, the data is not): `/api/chat`.

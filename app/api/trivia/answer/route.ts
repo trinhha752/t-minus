@@ -8,6 +8,7 @@ import { fail, ok } from "@/lib/respond";
 import { q, one } from "@/lib/db";
 import { currentUserId } from "@/lib/session";
 import { damageBoss } from "@/lib/boss";
+import { answerFor } from "@/lib/trivia";
 import { POINTS } from "@/lib/scoring";
 import type {
   RouteId,
@@ -27,16 +28,7 @@ export async function POST(req: NextRequest) {
 
   const userId = await currentUserId();
 
-  const question = await one<{
-    id: string;
-    station_id: string;
-    answer_index: number;
-    explanation: string | null;
-  }>(
-    `SELECT id, station_id, answer_index, explanation
-       FROM trivia_questions WHERE id = $1 AND verified`,
-    [body.questionId]
-  );
+  const question = await answerFor(body.questionId);
   if (!question) return fail("unknown question", 404);
 
   const correct = body.choiceIndex === question.answer_index;
@@ -59,6 +51,7 @@ export async function POST(req: NextRequest) {
       pointsEarned: 0,
       bossDamage: 0,
       bossHpRemaining: null,
+      combo: 0,
       alreadyAnswered: true,
     };
     return ok(result);
@@ -78,6 +71,22 @@ export async function POST(req: NextRequest) {
     [lines]
   );
 
+  // Combo: this rider's correct answers in a row on this boss so far.
+  let comboBefore = 0;
+  if (liveBoss) {
+    const recent = await q<{ correct: boolean }>(
+      `SELECT correct FROM trivia_answers
+        WHERE user_id = $1 AND boss_event_id = $2
+        ORDER BY created_at DESC LIMIT 10`,
+      [userId, liveBoss.id]
+    );
+    for (const r of recent) {
+      if (!r.correct) break;
+      comboBefore++;
+    }
+  }
+  const combo = liveBoss ? (correct ? comboBefore + 1 : 0) : 0;
+
   await q(
     `INSERT INTO trivia_answers (user_id, question_id, correct, boss_event_id)
      VALUES ($1, $2, $3, $4)`,
@@ -91,7 +100,7 @@ export async function POST(req: NextRequest) {
   if (correct) {
     if (liveBoss) {
       // During a boss the answer feeds the shared bar instead of your score.
-      const hit = await damageBoss(liveBoss.line, userId);
+      const hit = await damageBoss(liveBoss.line, userId, comboBefore);
       bossDamage = hit.damage;
       bossHpRemaining = hit.hpRemaining;
 
@@ -120,6 +129,7 @@ export async function POST(req: NextRequest) {
     pointsEarned,
     bossDamage,
     bossHpRemaining,
+    combo,
     alreadyAnswered: false,
   };
   return ok(result);

@@ -234,6 +234,9 @@ CREATE TABLE IF NOT EXISTS final_boss_fights (
   defeated          BOOLEAN NOT NULL DEFAULT false
 );
 
+-- Final boss is a trivia fight: correct answers in a row multiply damage.
+ALTER TABLE final_boss_fights ADD COLUMN IF NOT EXISTS combo INTEGER NOT NULL DEFAULT 0;
+
 CREATE UNIQUE INDEX IF NOT EXISTS one_open_fight_per_chapter
   ON final_boss_fights (user_id, chapter_id) WHERE ended_at IS NULL;
 

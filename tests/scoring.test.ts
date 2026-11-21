@@ -62,3 +62,12 @@ test("guess: gone after its time scores; gone long before is void (cancelled)", 
   assert.deepEqual(decideGuess(now - 30_000, null, now), { kind: "score", arrivedMs: now - 30_000 });
   assert.deepEqual(decideGuess(now + 10 * 60_000, null, now), { kind: "void" });
 });
+
+import { comboDamage, ANSWER_DAMAGE, MAX_COMBO } from "../lib/scoring";
+
+test("combo damage matches the UI's hitDamage: 20, 40, 60, then caps", () => {
+  assert.equal(ANSWER_DAMAGE, 20);
+  assert.equal(MAX_COMBO, 3);
+  assert.deepEqual([0, 1, 2, 3, 9].map((c) => comboDamage(c)), [20, 40, 60, 60, 60]);
+  assert.equal(comboDamage(0, 1.1), 22); // Signal Shard
+});

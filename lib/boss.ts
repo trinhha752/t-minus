@@ -8,11 +8,11 @@ import { q, tx } from "./db";
 import {
   BOSS_CLEAR_LATE_SHARE,
   BOSS_CLEAR_POLLS,
-  BOSS_DAMAGE_PER_CORRECT,
   BOSS_DELAY_THRESHOLD_SECONDS,
   BOSS_MIN_LATE_TRAINS,
   BOSS_SPAWN_LATE_SHARE,
   bossHpFor,
+  comboDamage,
 } from "./scoring";
 import { GRANT_BUFFS_SQL } from "./progress";
 import type { BossState, RouteId, TeamLine } from "../types";
@@ -172,7 +172,9 @@ export async function reconcileBosses(verdicts: LineVerdict[]): Promise<void> {
  */
 export async function damageBoss(
   line: TeamLine,
-  userId: string
+  userId: string,
+  /** This rider's correct answers in a row on this boss before this one. */
+  combo = 0
 ): Promise<{ damage: number; hpRemaining: number | null; defeated: boolean }> {
   return tx(async (c) => {
     const { rows } = await c.query<{ id: number; hp_remaining: number }>(
@@ -184,7 +186,7 @@ export async function damageBoss(
     if (rows.length === 0) return { damage: 0, hpRemaining: null, defeated: false };
 
     const boss = rows[0];
-    const damage = Math.min(BOSS_DAMAGE_PER_CORRECT, boss.hp_remaining);
+    const damage = Math.min(comboDamage(combo), boss.hp_remaining);
     const hpRemaining = boss.hp_remaining - damage;
     const defeated = hpRemaining <= 0;
 

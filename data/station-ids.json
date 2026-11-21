@@ -1,0 +1,23 @@
+{
+  "_note": "UI station slug (components/run/stations.ts) -> MBTA stop id. Backend-owned. tests/stations.test.ts fails if a UI station is missing here.",
+  "alewife": "place-alfcl",
+  "davis": "place-davis",
+  "porter": "place-portr",
+  "harvard": "place-harsq",
+  "central": "place-cntsq",
+  "kendall": "place-knncl",
+  "charles": "place-chmnl",
+  "park": "place-pktrm",
+  "downtown": "place-dwnxg",
+  "south": "place-sstat",
+  "lechmere": "place-lech",
+  "science": "place-spmnl",
+  "north": "place-north",
+  "haymarket": "place-haecl",
+  "gov": "place-gover",
+  "boylston": "place-boyls",
+  "arlington": "place-armnl",
+  "copley": "place-coecl",
+  "hynes": "place-hymnl",
+  "kenmore": "place-kencl"
+}

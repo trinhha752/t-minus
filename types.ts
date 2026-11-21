@@ -191,33 +191,26 @@ export interface TriviaAnswerResult {
   correctIndex: number;
   explanation: string | null;
   pointsEarned: number;
-  /** 0 when no boss is up. */
+  /** 0 when no boss is up. 20 x min(combo + 1, 3). */
   bossDamage: number;
+  /** This rider's correct answers in a row on the current boss, after this answer. */
+  combo: number;
   bossHpRemaining: number | null;
   /** True when this rider already answered this question today: shown, but scores nothing. */
   alreadyAnswered: boolean;
 }
 
 /* ---------- progression: stations are levels, a boss ends each chapter ---------- */
-
-/**
- * The game engines. Each station reskins one of these, so a new station is
- * new art and copy, not a new game. The frontend picks the component by engine.
- */
-export type GameEngine =
-  | "timing"
-  | "memory"
-  | "pick-the-lie"
-  | "rhythm"
-  | "dodge"
-  | "runner"
-  | "puzzle";
+// Stations, games and chapters come from components/run/stations.ts (the UI's
+// file). Any stationId below accepts the UI slug ("harvard") or the MBTA id
+// ("place-harsq"); responses give both.
 
 /** POST /api/minigame/result: sent when a mini-game ends. */
 export interface MiniGameResultRequest {
+  /** UI slug ("alewife") or MBTA id ("place-alfcl"). */
   stationId: string;
-  /** From the chapter's station entry, e.g. "rooftop-run". */
-  gameId: string;
+  /** Optional: kebab-case of the game title, e.g. "fish-run". Checked if sent. */
+  gameId?: string;
   /** Whatever the game scores. Clamped server-side to 0..10000. */
   score: number;
   /** Did the player beat the level? Only a cleared run counts toward progress. */
@@ -231,21 +224,28 @@ export interface MiniGameResult {
   pointsEarned: number;
   /** True the first time this rider clears this station. */
   stationCleared: boolean;
-  /** Set when this clear unlocked a chapter's final boss. */
+  /** Chapter id ("red" | "green") when this clear unlocked its final boss. */
   chapterBossUnlocked: string | null;
 }
 
 export interface ChapterStation {
+  /** MBTA id, e.g. "place-harsq". */
   stationId: string;
+  /** UI slug, e.g. "harvard". */
+  slug: string;
   name: string;
+  /** kebab-case game title, e.g. "three-lies". */
   gameId: string;
-  engine: GameEngine;
+  title: string;
+  genre: string;
   cleared: boolean;
   bestScore: number | null;
 }
 
 export interface Chapter {
+  /** The UI's line id: "red" | "green". */
   id: string;
+  /** The realm, e.g. "Scholars' Realm". */
   name: string;
   line: TeamLine;
   bossStationId: string;
@@ -258,11 +258,11 @@ export interface Chapter {
   activeFightId: string | null;
 }
 
-/** Earned by helping beat a delay (mini) boss. Spent on a final boss fight. */
+/** Earned by helping beat a delay (mini) boss: the Signal Shard. Spent on a final boss fight. */
 export interface Buff {
   id: string;
   type: "boss_damage";
-  /** 0.5 means +50% damage. */
+  /** 0.1 means +10% damage. */
   value: number;
   grantedAt: string;
   expiresAt: string;
@@ -277,9 +277,11 @@ export interface Progress {
   buffs: Buff[];
 }
 
-/** POST /api/final-boss/start { chapterId } -> FinalBossFight (resumes an open one). */
+/** POST /api/final-boss/start -> FinalBossFight (resumes an open one). */
 export interface FinalBossStartRequest {
   chapterId: string;
+  /** Short fight (300 HP instead of 1000) for showing judges the whole loop. */
+  demo?: boolean;
 }
 
 export interface FinalBossFight {
@@ -290,22 +292,39 @@ export interface FinalBossFight {
   hpRemaining: number;
   /** 1 plus every buff spent on this fight. */
   damageMultiplier: number;
+  /** Correct answers in a row. Damage = 20 x min(combo + 1, 3) x damageMultiplier. */
+  combo: number;
   defeated: boolean;
   startedAt: string;
   endedAt: string | null;
+  /** The questions for this fight, drawn from the chapter's stations. No answers. Cycle through them. */
+  questions: TriviaQuestion[];
 }
 
-/** POST /api/final-boss/hit { fightId }: one landed attack (a cleared round or a correct answer). */
-export interface FinalBossHitRequest {
+/** POST /api/final-boss/answer: one answer in the fight. Max one per 1.5s. */
+export interface FinalBossAnswerRequest {
   fightId: string;
+  questionId: string;
+  choiceIndex: number;
 }
 
-export interface FinalBossHitResult {
+export interface FinalBossAnswerResult {
+  correct: boolean;
+  correctIndex: number;
+  explanation: string | null;
+  /** 0 on a wrong answer. Hearts are the UI's to track: a wrong answer costs one. */
   damage: number;
+  /** Combo after this answer (reset to 0 on a wrong one). */
+  combo: number;
   hpRemaining: number;
   defeated: boolean;
   /** Bonus points, only on the killing blow. */
   pointsEarned: number;
+}
+
+/** POST /api/final-boss/forfeit { fightId }: the rider ran out of hearts or left. Ends the fight, not defeated. */
+export interface FinalBossForfeitRequest {
+  fightId: string;
 }
 
 /* ---------- leaderboard ---------- */

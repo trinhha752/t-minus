@@ -99,59 +99,86 @@ async function main() {
   check("trivia: answers never sent to the browser",
     !JSON.stringify(r.body).match(/answer_?index|correctIndex/i));
 
-  // Progression
-  r = await call("POST", "/api/final-boss/start", { chapterId: "green-trunk" });
-  check("final boss: locked before the chapter is cleared", r.status === 400);
-  r = await call("POST", "/api/minigame/result", { stationId: "place-pktrm", gameId: "rooftop-run", score: 1, cleared: true, durationMs: 30000 });
-  check("minigame: wrong game for this station is refused", r.status === 400);
-  r = await call("POST", "/api/minigame/result", { stationId: "place-pktrm", gameId: "frog-pond-skate", score: 1, cleared: true, durationMs: 500 });
-  check("minigame: impossibly fast clear is refused", r.status === 400);
+  // Progression: chapters come from components/run/stations.ts. Use UI slugs.
+  r = await call("GET", "/api/progress");
+  const red = r.body.data?.chapters?.find((c: any) => c.id === "red");
+  check("progress: red chapter from the UI's stations.ts", red?.stations?.length === 10 && red.stations[0].slug === "alewife",
+    `${red?.name}, ${red?.stations?.length} stations, boss ${red?.bossName}`);
 
-  const stations: [string, string][] = [
-    ["place-pktrm", "frog-pond-skate"], ["place-boyls", "rooftop-run"],
-    ["place-armnl", "garden-or-graveyard"], ["place-coecl", "the-last-mile"],
-  ];
-  for (const [i, [stationId, gameId]] of stations.entries()) {
-    r = await call("POST", "/api/minigame/result", { stationId, gameId, score: 500, cleared: true, durationMs: 30000 });
-    check(`minigame: clear ${gameId}`, r.body.ok && r.body.data.pointsEarned > 0 && r.body.data.stationCleared);
-    if (i === stations.length - 1)
-      check("minigame: last station unlocks the chapter boss", r.body.data?.chapterBossUnlocked === "green-trunk", `${r.body.data?.chapterBossUnlocked}`);
+  r = await call("POST", "/api/final-boss/start", { chapterId: "red" });
+  check("final boss: locked before the chapter is cleared", r.status === 400);
+  r = await call("POST", "/api/minigame/result", { stationId: "alewife", gameId: "rooftop-run", score: 1, cleared: true, durationMs: 30000 });
+  check("minigame: wrong game for this station is refused", r.status === 400);
+  r = await call("POST", "/api/minigame/result", { stationId: "alewife", score: 1, cleared: true, durationMs: 500 });
+  check("minigame: impossibly fast clear is refused", r.status === 400);
+  r = await call("POST", "/api/minigame/result", { stationId: "nowhere", score: 1, cleared: true, durationMs: 30000 });
+  check("minigame: unknown station is refused", r.status === 400);
+
+  for (const [i, s] of (red?.stations ?? []).entries()) {
+    // Mix id styles: UI slug for most, MBTA id for one, gameId only sometimes.
+    const stationId = i === 3 ? s.stationId : s.slug;
+    const body: any = { stationId, score: 500, cleared: true, durationMs: 30000 };
+    if (i % 2 === 0) body.gameId = s.gameId;
+    r = await call("POST", "/api/minigame/result", body);
+    if (!r.body.ok || !r.body.data.stationCleared) check(`minigame: clear ${s.slug}`, false, r.body.error);
+    if (i === red.stations.length - 1) {
+      check("minigame: all 10 red stations clear", r.body.ok);
+      check("minigame: last station unlocks the chapter boss", r.body.data?.chapterBossUnlocked === "red", `${r.body.data?.chapterBossUnlocked}`);
+    }
   }
-  r = await call("POST", "/api/minigame/result", { stationId: "place-pktrm", gameId: "frog-pond-skate", score: 500, cleared: true, durationMs: 30000 });
+  r = await call("POST", "/api/minigame/result", { stationId: "alewife", score: 500, cleared: true, durationMs: 30000 });
   check("minigame: replay the same day earns 0", r.body.ok && r.body.data.pointsEarned === 0);
 
-  r = await call("GET", "/api/progress");
-  const ch = r.body.data?.chapters?.find((c: any) => c.id === "green-trunk");
-  check("progress: chapter shows unlocked", ch?.bossUnlocked === true && ch?.bossDefeated === false);
-
-  r = await call("POST", "/api/final-boss/start", { chapterId: "green-trunk" });
+  r = await call("POST", "/api/final-boss/start", { chapterId: "red", demo: true });
   const fight = r.body.data;
-  check("final boss: starts", r.body.ok && fight.hpRemaining === fight.hpTotal,
-    `${fight?.bossName}, ${fight?.hpTotal}hp, x${fight?.damageMultiplier}`);
-  r = await call("POST", "/api/final-boss/start", { chapterId: "green-trunk" });
-  check("final boss: starting again resumes the same fight", r.body.data?.id === fight.id);
+  if (!r.body.ok && /no verified questions/.test(r.body.error ?? "")) {
+    console.log("SKIP  final boss: no verified questions yet (verify some, or set ALLOW_UNVERIFIED_TRIVIA=1)");
+  } else if (!r.body.ok) {
+    check("final boss: starts in demo mode", false, r.body.error);
+  } else {
+    check("final boss: starts in demo mode at 300 HP with questions", r.body.ok && fight.hpTotal === 300 && fight.questions.length > 0,
+      `${fight?.bossName}, ${fight?.hpTotal}hp, x${fight?.damageMultiplier}, ${fight?.questions?.length} questions`);
+    check("final boss: questions carry no answers", !JSON.stringify(fight ?? {}).match(/answer_?index|correctIndex/i));
+    r = await call("POST", "/api/final-boss/start", { chapterId: "red", demo: true });
+    check("final boss: starting again resumes the same fight", r.body.data?.id === fight.id);
 
-  r = await call("POST", "/api/final-boss/hit", { fightId: fight.id });
-  check("final boss: a hit does damage", r.body.ok && r.body.data.hpRemaining < fight.hpTotal, `${r.body.data?.hpRemaining}hp left`);
-  r = await call("POST", "/api/final-boss/hit", { fightId: fight.id });
-  check("final boss: spam hits get 429", r.status === 429);
+    // Learn an answer by getting it wrong, then land a combo with it.
+    const qn = fight.questions[0];
+    r = await call("POST", "/api/final-boss/answer", { fightId: fight.id, questionId: qn.id, choiceIndex: 99 });
+    const right = r.body.data?.correctIndex;
+    check("final boss: wrong answer does no damage and resets combo", r.body.ok && r.body.data.damage === 0 && r.body.data.combo === 0);
+    r = await call("POST", "/api/final-boss/answer", { fightId: fight.id, questionId: qn.id, choiceIndex: right });
+    check("final boss: answering within 1.5s is a 429", r.status === 429);
 
-  let hp = 1, hits = 1, last: Res | null = null;
-  while (hp > 0 && hits < 20) {
+    const dmg: number[] = [];
+    let last: Res | null = null;
+    for (let i = 0; i < 20; i++) {
+      await sleep(1600);
+      last = await call("POST", "/api/final-boss/answer", { fightId: fight.id, questionId: qn.id, choiceIndex: right });
+      if (!last.body.ok) break;
+      dmg.push(last.body.data.damage);
+      if (last.body.data.defeated) break;
+    }
+    check("final boss: combo ramps 20 -> 40 -> 60 (x buffs)",
+      dmg.length >= 3 && dmg[1] === 2 * dmg[0] && dmg[2] === 3 * dmg[0], dmg.join(","));
+    check("final boss: defeated", last?.body.data?.defeated === true && last.body.data.pointsEarned > 0,
+      `${dmg.length} correct answers, +${last?.body.data?.pointsEarned} points`);
     await sleep(1600);
-    last = await call("POST", "/api/final-boss/hit", { fightId: fight.id });
-    hp = last.body.data?.hpRemaining ?? 0;
-    hits++;
-    if (!last.body.ok) break;
+    r = await call("POST", "/api/final-boss/answer", { fightId: fight.id, questionId: qn.id, choiceIndex: right });
+    check("final boss: no answers after it is over", r.status === 400);
+    r = await call("GET", "/api/progress");
+    check("progress: chapter shows defeated", r.body.data?.chapters?.find((c: any) => c.id === "red")?.bossDefeated === true);
   }
-  check("final boss: defeated", last?.body.data?.defeated === true && last.body.data.pointsEarned > 0,
-    `${hits} hits, +${last?.body.data?.pointsEarned} points`);
-  await sleep(1600);
-  r = await call("POST", "/api/final-boss/hit", { fightId: fight.id });
-  check("final boss: no hits after it is over", r.status === 400);
-  r = await call("GET", "/api/progress");
-  check("progress: chapter shows defeated",
-    r.body.data?.chapters?.find((c: any) => c.id === "green-trunk")?.bossDefeated === true);
+
+  // Forfeit: a green fight can't start (not cleared), so forfeit a bogus id.
+  r = await call("POST", "/api/final-boss/forfeit", { fightId: "0" });
+  check("final boss: forfeiting a fight you don't have is a 400", r.status === 400);
+
+  // Delay boss trivia by line
+  r = await call("GET", "/api/trivia?line=Red");
+  check("trivia: a line's boss round", r.body.ok && Array.isArray(r.body.data.questions), `${r.body.data?.questions?.length} questions`);
+  r = await call("GET", "/api/trivia?stop=park");
+  check("trivia: UI slug works as stop", r.body.ok && r.body.data.stationId === "place-pktrm");
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

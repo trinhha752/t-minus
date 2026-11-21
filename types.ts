@@ -59,6 +59,8 @@ export interface Station {
 export interface Arrival {
   /** MBTA prediction id. */
   id: string;
+  /** MBTA trip id: the same physical train across polls. */
+  tripId: string | null;
   stopId: string;
   route: RouteId;
   /** 0 or 1. The MBTA defines which end each means per route. */
@@ -192,6 +194,8 @@ export interface TriviaAnswerResult {
   /** 0 when no boss is up. */
   bossDamage: number;
   bossHpRemaining: number | null;
+  /** True when this rider already answered this question today: shown, but scores nothing. */
+  alreadyAnswered: boolean;
 }
 
 /* ---------- progression: stations are levels, a boss ends each chapter ---------- */

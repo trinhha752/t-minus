@@ -67,6 +67,31 @@ async function main() {
     r.body.ok && r.body.data.stampedStationIds.includes("place-pktrm") && r.body.data.points > 0,
     `${r.body.data?.points} pts, stamps ${r.body.data?.stampedStationIds?.join(",")}`);
 
+  // Leaderboard
+  r = await call("GET", "/api/leaderboard?scope=line");
+  check("leaderboard: four teams ranked", r.body.ok && r.body.data.rows.length === 4 && r.body.data.rows[0].rank === 1,
+    r.body.data?.rows?.map((x: any) => `${x.name} ${x.points}`).join(", "));
+  r = await call("GET", "/api/leaderboard?scope=user");
+  check("leaderboard: riders sorted by points", r.body.ok &&
+    r.body.data.rows.every((x: any, i: number, a: any[]) => i === 0 || a[i - 1].points >= x.points),
+    `${r.body.data?.rows?.length} riders`);
+  r = await call("GET", "/api/leaderboard?scope=nope");
+  check("leaderboard: bad scope is a 400", r.status === 400);
+
+  // Guess: lock onto a real train. Resolution takes minutes, so it's unit-tested instead.
+  r = await call("POST", "/api/guess", { stationId: "place-pktrm", guessMinutes: 4 });
+  const guess = r.body.data;
+  check("guess: locks onto a train 90s+ out", r.body.ok && Date.parse(guess.targetArrivalIso) - Date.now() > 60_000,
+    r.body.ok ? `target ${Math.round((Date.parse(guess.targetArrivalIso) - Date.now()) / 1000)}s away` : r.body.error);
+  r = await call("POST", "/api/guess", { stationId: "place-pktrm", guessMinutes: 5 });
+  check("guess: a second open guess is a 409", r.status === 409);
+  if (guess) {
+    r = await call("GET", `/api/guess/${guess.id}`);
+    check("guess: polling shows it unresolved", r.body.ok && r.body.data.resolved === false);
+  }
+  r = await call("GET", "/api/guess/not-a-real-id");
+  check("guess: unknown id is a 404", r.status === 404);
+
   // Trivia
   r = await call("GET", "/api/trivia?stop=place-pktrm&wait=300");
   const qs = r.body.data?.questions ?? [];

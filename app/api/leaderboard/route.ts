@@ -1,30 +1,39 @@
-// MOCK — weekly totals from users / trivia_answers.
+// GET /api/leaderboard?scope=line|user
+// scope=line: the four teams ranked by their riders' total points.
+// scope=user: the top 20 riders. teamTotals always comes back, for the map.
+
 import type { NextRequest } from "next/server";
-import type { Leaderboard, LeaderboardRow, TeamLine } from "@/types";
 import { fail, ok } from "@/lib/respond";
+import { q } from "@/lib/db";
+import type { Leaderboard, LeaderboardRow, TeamLine } from "@/types";
+import { ALL_TEAMS } from "@/types";
 
-const TEAM_TOTALS: Record<TeamLine, number> = { Green: 1840, Red: 1520, Orange: 990, Blue: 610 };
-
-const BY_LINE: LeaderboardRow[] = [
-  { rank: 1, name: "Green", points: 1840, team: "Green" },
-  { rank: 2, name: "Red", points: 1520, team: "Red" },
-  { rank: 3, name: "Orange", points: 990, team: "Orange" },
-  { rank: 4, name: "Blue", points: 610, team: "Blue" },
-];
-
-const BY_USER: LeaderboardRow[] = [
-  { rank: 1, name: "Demo Rider", points: 240, team: "Green" },
-  { rank: 2, name: "Sim Rider A", points: 180, team: "Red" },
-  { rank: 3, name: "Sim Rider B", points: 95, team: "Blue" },
-];
+const TOP_RIDERS = 20;
 
 export async function GET(request: NextRequest) {
   const scope = request.nextUrl.searchParams.get("scope") ?? "line";
   if (scope !== "line" && scope !== "user") return fail("scope must be line or user");
-  const board: Leaderboard = {
-    scope,
-    rows: scope === "line" ? BY_LINE : BY_USER,
-    teamTotals: TEAM_TOTALS,
-  };
+
+  const totals = await q<{ team_line: TeamLine; points: string }>(
+    `SELECT team_line, COALESCE(SUM(points), 0) AS points FROM users GROUP BY team_line`
+  );
+  const teamTotals = Object.fromEntries(ALL_TEAMS.map((t) => [t, 0])) as Record<TeamLine, number>;
+  for (const t of totals) teamTotals[t.team_line] = Number(t.points);
+
+  let rows: LeaderboardRow[];
+  if (scope === "line") {
+    rows = [...ALL_TEAMS]
+      .sort((a, b) => teamTotals[b] - teamTotals[a])
+      .map((team, i) => ({ rank: i + 1, name: team, points: teamTotals[team], team }));
+  } else {
+    const riders = await q<{ name: string; points: number; team_line: TeamLine }>(
+      `SELECT name, points, team_line FROM users WHERE points > 0
+        ORDER BY points DESC, created_at LIMIT $1`,
+      [TOP_RIDERS]
+    );
+    rows = riders.map((r, i) => ({ rank: i + 1, name: r.name, points: r.points, team: r.team_line }));
+  }
+
+  const board: Leaderboard = { scope, rows, teamTotals };
   return ok(board);
 }

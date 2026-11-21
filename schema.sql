@@ -68,6 +68,13 @@ CREATE TABLE IF NOT EXISTS guesses (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- The guess follows one physical train, so a delay moves the target with it.
+ALTER TABLE guesses ADD COLUMN IF NOT EXISTS trip_id TEXT;
+ALTER TABLE guesses ADD COLUMN IF NOT EXISTS route TEXT;
+-- One open guess per rider at a time.
+CREATE UNIQUE INDEX IF NOT EXISTS guesses_one_open_per_user
+  ON guesses (user_id) WHERE NOT resolved;
+
 /* ---------- trivia ---------- */
 
 CREATE TABLE IF NOT EXISTS trivia_questions (
@@ -94,6 +101,10 @@ CREATE TABLE IF NOT EXISTS trivia_answers (
   boss_event_id  BIGINT,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- "Already answered today?" lookup, so repeats can't farm points or boss damage.
+CREATE INDEX IF NOT EXISTS trivia_answers_user_question
+  ON trivia_answers (user_id, question_id, created_at DESC);
 
 /* ---------- boss ---------- */
 

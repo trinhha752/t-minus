@@ -14,6 +14,15 @@ export const POINTS = {
   finalBossDefeated: 200,
 } as const;
 
+/* ---------- arrival guess ---------- */
+
+/** The train you guess on must be at least this far out: no guessing a train you can see. */
+export const GUESS_MIN_LEAD_SECONDS = 90;
+/** ...and no further out than this. */
+export const GUESS_MAX_LEAD_SECONDS = 30 * 60;
+/** A guess whose train vanished from predictions this long before its time is void (cancelled). */
+export const GUESS_VOID_IF_GONE_EARLY_SECONDS = 120;
+
 /* ---------- progression ---------- */
 
 /** Final bosses are solo, so fixed HP: about 10 landed hits unbuffed. */
@@ -41,8 +50,19 @@ export const BOSS_HP_MIN = 50; // so one person can still win in a demo
 
 /** A train is "late" at this many seconds behind schedule, at its next stop... */
 export const BOSS_DELAY_THRESHOLD_SECONDS = 300;
-/** ...and a boss spawns when this many distinct trains on one line are late. */
+/** ...a boss needs at least this many distinct late trains, so a 4-train Red Line can't spawn on 2... */
 export const BOSS_MIN_LATE_TRAINS = 3;
+/**
+ * ...and spawns when at least this share of the line's trains are late.
+ * Tuned on 313 real polls (21 Nov 2026): a fixed count of 3 kept Orange and
+ * Green up 100% of the time, because a big line always has 3 late trains.
+ */
+export const BOSS_SPAWN_LATE_SHARE = 0.5;
+/**
+ * Once up, the boss holds until the share drops below this (hysteresis).
+ * One threshold for both made Green flicker on and off 9 times in 78 minutes.
+ */
+export const BOSS_CLEAR_LATE_SHARE = 0.3;
 /** A detected boss escapes after this many clean polls in a row (15s each). */
 export const BOSS_CLEAR_POLLS = 2;
 

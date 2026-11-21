@@ -108,11 +108,14 @@ project(layout.projection, train.lat, train.lon); // live trains from /api/train
 |---|---|---|
 | Chapter screen | `GET /api/progress` | Stations with `cleared` and `bestScore`, plus `bossUnlocked`, `bossDefeated`, `activeFightId` (resume it), and buffs |
 | Final boss fight | `POST /api/final-boss/start {chapterId}` then `POST /api/final-boss/hit {fightId}` | One hit per 1.5s. Faster hits return **429**: play a "whiff" animation, not an error. `defeated: true` comes with +200 points. |
-| Delay boss takeover | `GET /api/boss` every 15s | `active: true` on a line means a delay boss is up. Show HP from `hpRemaining` and `hpTotal`. Trivia answers damage it. |
+| Delay boss takeover | `GET /api/boss` every 15s | `active: true` on a line means a delay boss is up. Show HP from `hpRemaining` and `hpTotal`. Trivia answers damage it. It spawns when half a line's trains are 5+ min late (or the MBTA posts a delay alert), and escapes once fewer than 30% are. |
+| Trivia answer | `POST /api/trivia/answer` | `alreadyAnswered: true` means the rider answered this question today. Show the answer, but it scores nothing and does no boss damage. |
+| Arrival guess | `POST /api/guess {stationId, guessMinutes}` then poll `GET /api/guess/:id` every 10s | Locks onto the next train at least 90s out, and follows that train if it slips. When it arrives: `resolved: true` with `actualMinutes` and `pointsEarned` (50 for exact, minus 10 per minute off). If the train is cancelled, `actualMinutes` is null and it scores 0. One open guess per rider: a second one returns **409**. No Safe or All In stake on the server yet. |
+| Leaderboard | `GET /api/leaderboard?scope=line` or `?scope=user` | Teams ranked by total points, or the top 20 riders. `teamTotals` is always included, for coloring the map. Points are all-time, not weekly. |
 | Profile and header | `GET /api/me` | Points, level, streak, badges, stamps |
 | Next trains | `GET /api/predictions?stop=<id>` | `secondsAway` can be negative: the train is at the platform, so show "Boarding" |
 
-Still mock data, with final shapes (build against them now): `/api/leaderboard`, `/api/guess`, `/api/guess/[id]`, `/api/chat`.
+Still mock data, with a final shape (build against it now): `/api/chat`.
 
 ### Everyone: not code, but blocking
 
@@ -131,6 +134,12 @@ curl "localhost:3000/api/trains?line=Red"                   # line = Red | Orang
 # Delay (mini) boss: shared by everyone on the line
 curl "localhost:3000/api/boss"                              # 4 lines: active, hp, lateTrains, avgDelaySeconds
 curl -c jar.txt -b jar.txt localhost:3000/api/me            # rider: points, level, streak, badges, stampedStationIds
+curl "localhost:3000/api/leaderboard?scope=line"            # or scope=user for the top 20 riders
+
+# Arrival guess: lock in, then poll until resolved
+curl -c jar.txt -b jar.txt -X POST localhost:3000/api/guess -H 'content-type: application/json' \
+  -d '{"stationId":"place-pktrm","guessMinutes":4}'
+curl -c jar.txt -b jar.txt localhost:3000/api/guess/<id from above>
 
 # Check in (teleport skips the GPS check, for the demo)
 curl -c jar.txt -b jar.txt -X POST localhost:3000/api/checkin -H 'content-type: application/json' \
@@ -151,7 +160,7 @@ curl -c jar.txt -b jar.txt -X POST localhost:3000/api/final-boss/hit -H 'content
   -d '{"fightId":"<id from start>"}'                        # one landed attack; max one per 1.5s
 ```
 
-Still mock (shapes are final, data is not): `/api/leaderboard`, `/api/guess`, `/api/guess/[id]`, `/api/chat`.
+Still mock (the shape is final, the data is not): `/api/chat`.
 
 ### Testing the backend
 

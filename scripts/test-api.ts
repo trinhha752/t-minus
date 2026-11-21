@@ -41,6 +41,8 @@ async function main() {
   let r = await call("GET", "/api/predictions?stop=place-pktrm");
   check("predictions: Park Street returns trains", r.body.ok && r.body.data.length > 0,
     r.body.ok ? r.body.data.map((a: any) => `${a.route} ${a.headsign} ${a.secondsAway}s`).join(", ") : r.body.error);
+  r = await call("GET", "/api/predictions?stop=park");
+  check("predictions: UI slug works", r.body.ok && r.body.data.length > 0 && r.body.data[0].stopId === "place-pktrm");
   r = await call("GET", "/api/predictions");
   check("predictions: missing stop is a 400", r.status === 400);
 

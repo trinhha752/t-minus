@@ -6,6 +6,7 @@ import { fail, ok, readJson } from "@/lib/respond";
 import { currentUserId } from "@/lib/session";
 import { createGuess } from "@/lib/guess";
 import { GameRuleError } from "@/lib/progress";
+import { toMbtaId } from "@/lib/chapters";
 import type { GuessRequest } from "@/types";
 
 export async function POST(request: Request) {
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
   }
   const userId = await currentUserId();
   try {
-    return ok(await createGuess(userId, body.stationId, body.guessMinutes));
+    return ok(await createGuess(userId, toMbtaId(body.stationId) ?? body.stationId, body.guessMinutes));
   } catch (e) {
     if (e instanceof GameRuleError) return fail(e.message, e.message.startsWith("you already") ? 409 : 400);
     throw e;

@@ -14,6 +14,8 @@ import BrakeGame from "@/components/game/BrakeGame";
 import PhotoQuest from "@/components/PhotoQuest";
 import { ROUTES, STATIONS, LINES, primaryLine, type LineId } from "@/components/run/stations";
 import { stationQuest } from "@/lib/photo-quests";
+import YouAreHere from "@/components/game/YouAreHere";
+import stationIds from "@/data/station-ids.json";
 import type { BrakeResult } from "@/game/brake";
 import type { Arrival, Chapter, TeamLine } from "@/types";
 
@@ -24,7 +26,9 @@ type Where =
   | { kind: "far"; slug: string; metres: number }
   | { kind: "nolocation" };
 
-const TEAM: Record<LineId, TeamLine> = { red: "Red", green: "Green" };
+const TEAM: Record<LineId, TeamLine> = { red: "Red", green: "Green", orange: "Orange" };
+const MBTA_ID = stationIds as Record<string, string>;
+const ROUTE_LABEL = (r: string) => (r.startsWith("Green-") ? `Green Line ${r.slice(6)}` : `${r} Line`);
 const DEMO = process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_DEMO_MODE === "1";
 
 /** How T platform signs show a train: minutes, then Arriving, then Boarding. */
@@ -53,6 +57,8 @@ export default function PlayPage() {
   const [fetchedAt, setFetchedAt] = useState(0);
   const [now, setNow] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [nearAny, setNearAny] = useState<{ stationId: string; name: string; routes: string[]; metres: number } | null>(null);
+  const [tab, setTab] = useState<LineId | null>(null);
   const startedAt = useRef(0);
 
   // The station you're playing: where you are, or the demo teleport.
@@ -73,6 +79,7 @@ export default function PlayPage() {
         setCoords({ lat, lon });
         const r = await fetch(`/api/stations/nearest?lat=${lat}&lon=${lon}`).then((x) => x.json()).catch(() => null);
         if (!r?.ok) return setWhere({ kind: "nolocation" });
+        setNearAny(r.data.nearestAny);
         setWhere({ kind: r.data.inRange ? "here" : "far", slug: r.data.slug, metres: r.data.metres });
       },
       () => setWhere({ kind: "nolocation" }),
@@ -205,9 +212,9 @@ export default function PlayPage() {
     );
   }
 
-  const chapter = chapters.find((c) => c.id === lineId) ?? null;
-  const cleared = chapter?.stations.filter((s) => s.cleared).length ?? 0;
-  const total = chapter?.stations.length ?? 0;
+  const shownLine: LineId = tab ?? lineId;
+  const shownChapter = chapters.find((c) => c.id === shownLine) ?? null;
+  const stampedIds = new Set(chapters.flatMap((c) => c.stations.filter((x) => x.cleared).map((x) => x.stationId)));
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-5 bg-[#0b0b12] p-4 font-mono text-white">
@@ -265,44 +272,33 @@ export default function PlayPage() {
         </section>
       )}
 
-      {/* Collection: the reason to ride somewhere new. */}
-      {chapter && (
-        <section className="border-4 border-white/20 p-3">
-          <div className="flex justify-between text-xs">
-            <span>{line.name.toUpperCase()} COLLECTION</span>
-            <span>
-              {cleared}/{total}
-            </span>
-          </div>
-          <div className="mt-2 flex gap-1">
-            {chapter.stations.map((s) => (
-              <div key={s.slug} title={s.name} className="h-3 flex-1" style={{ background: s.cleared ? line.color : "#333", outline: s.slug === slug ? "2px solid #fff" : "none" }} />
-            ))}
-          </div>
-          <p className="mt-2 text-xs opacity-70">
-            {chapter.bossDefeated
-              ? `${chapter.bossName} defeated!`
-              : chapter.bossUnlocked
-                ? `${chapter.bossName} awaits at the end of the line!`
-                : `${total - cleared} more to unlock ${chapter.bossName}. Ride somewhere new!`}
-          </p>
-        </section>
-      )}
-
-      {/* Where you are */}
+      {/* You are here: a live map with your dot, and what's nearby. */}
       {screen === "home" && (
-        <section className="border-4 p-3" style={{ borderColor: station ? line.color : "#555" }}>
-          {where.kind === "locating" && <p>📍 Finding your station…</p>}
-          {where.kind === "here" && !teleport && <p>📍 You&apos;re at {station?.name} ({where.metres} m)</p>}
-          {where.kind === "far" && !teleport && (
+        <section className="flex flex-col gap-2 border-4 p-3" style={{ borderColor: station ? line.color : "#555" }}>
+          <p className="text-xs opacity-60">YOU ARE HERE</p>
+          <YouAreHere
+            you={coords}
+            gameStations={(Object.keys(ROUTES) as LineId[]).flatMap((l) => ROUTES[l].map((id) => ({ stationId: MBTA_ID[id], color: LINES[l].color })))}
+            stamped={stampedIds}
+            current={slug ? MBTA_ID[slug] : null}
+          />
+          {where.kind === "locating" && <p>📍 Finding you…</p>}
+          {where.kind === "nolocation" && !teleport && <p>📍 Location is off. Allow location access to find your station.</p>}
+          {where.kind === "here" && !teleport && (
             <p>
-              📍 Not at a T-Minus station. Nearest is <b>{STATIONS.find((s) => s.id === where.slug)?.name}</b>, {(where.metres / 1000).toFixed(1)} km away. Go there to play!
+              📍 You&apos;re at <b>{station?.name}</b> ({where.metres} m). Ready to play!
             </p>
           )}
-          {where.kind === "nolocation" && !teleport && <p>📍 Location is off. Allow location to find your station.</p>}
+          {where.kind === "far" && !teleport && nearAny && (
+            <p className="text-sm">
+              📍 You&apos;re near <b>{nearAny.name}</b> ({nearAny.routes.map(ROUTE_LABEL).join(", ")}, {nearAny.metres} m)
+              {MBTA_ID[where.slug] === nearAny.stationId ? "" : ", which isn't in the game yet"}. Nearest game station:{" "}
+              <b>{STATIONS.find((s) => s.id === where.slug)?.name}</b>, {(where.metres / 1000).toFixed(1)} km. Go there to play!
+            </p>
+          )}
           {teleport && <p>🛸 Demo teleport: {station?.name}</p>}
           {DEMO && (
-            <label className="mt-2 flex flex-col gap-1 text-xs opacity-70">
+            <label className="flex flex-col gap-1 text-xs opacity-70">
               DEMO TELEPORT
               <select
                 value={teleport ?? ""}
@@ -321,6 +317,61 @@ export default function PlayPage() {
                 ))}
               </select>
             </label>
+          )}
+        </section>
+      )}
+
+      {/* One section per line: its stations in order, what you've stamped, and its End Boss. */}
+      {screen !== "welcome" && (
+        <section className="flex flex-col gap-2">
+          <div className="flex gap-1">
+            {(Object.keys(ROUTES) as LineId[]).map((l) => {
+              const c = chapters.find((x) => x.id === l);
+              const n = c?.stations.filter((x) => x.cleared).length ?? 0;
+              return (
+                <button
+                  key={l}
+                  onClick={() => setTab(l)}
+                  className="flex-1 border-4 px-1 py-2 text-xs font-bold"
+                  style={{ borderColor: LINES[l].color, background: l === shownLine ? LINES[l].color : "transparent" }}
+                >
+                  {LINES[l].name.replace(" Line", "").toUpperCase()} {c ? `${n}/${c.stations.length}` : ""}
+                </button>
+              );
+            })}
+          </div>
+          {shownChapter && (
+            <div className="border-4 p-3" style={{ borderColor: LINES[shownLine].color }}>
+              <p className="text-xs opacity-60">{LINES[shownLine].realm.toUpperCase()}</p>
+              <ol className="mt-2 flex flex-col">
+                {shownChapter.stations.map((s, i) => {
+                  const here = s.slug === slug;
+                  return (
+                    <li key={s.slug} className="flex items-center gap-3 py-1">
+                      <span
+                        className="grid h-6 w-6 shrink-0 place-items-center border-2 text-[10px] font-black"
+                        style={{ borderColor: LINES[shownLine].color, background: s.cleared ? LINES[shownLine].color : "transparent" }}
+                      >
+                        {s.cleared ? "✓" : i + 1}
+                      </span>
+                      <span className={`flex-1 ${here ? "font-black" : ""}`}>{s.name}</span>
+                      <span className="text-xs opacity-70">{here ? "📍 you're here" : s.cleared ? "stamped" : s.title}</span>
+                    </li>
+                  );
+                })}
+                <li className="mt-1 flex items-center gap-3 border-t-2 border-white/10 pt-2">
+                  <span className="grid h-6 w-6 place-items-center text-base">{shownChapter.bossDefeated ? "🏆" : shownChapter.bossUnlocked ? "⚔️" : "🔒"}</span>
+                  <span className="flex-1 font-bold">{shownChapter.bossName}</span>
+                  <span className="text-xs opacity-70">
+                    {shownChapter.bossDefeated
+                      ? "defeated"
+                      : shownChapter.bossUnlocked
+                        ? "unlocked!"
+                        : `${shownChapter.stations.filter((x) => !x.cleared).length} stations to go`}
+                  </span>
+                </li>
+              </ol>
+            </div>
           )}
         </section>
       )}

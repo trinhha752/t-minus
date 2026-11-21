@@ -1,4 +1,4 @@
-export type LineId = 'red' | 'green'
+export type LineId = 'red' | 'green' | 'orange'
 
 export type LabelAlign = 'start' | 'end' | 'center'
 
@@ -32,6 +32,13 @@ export const LINES: Record<
     color: '#00843D',
     dark: '#00602C',
     tint: '#E3F4EA',
+  },
+  orange: {
+    name: 'Orange Line',
+    realm: 'Revolution Road',
+    color: '#ED8B00',
+    dark: '#B86B00',
+    tint: '#FDF0E0',
   },
 }
 
@@ -128,7 +135,7 @@ export const STATIONS: Station[] = [
   {
     id: 'downtown',
     name: 'Downtown Crossing',
-    lines: ['red'],
+    lines: ['red', 'orange'],
     x: 320,
     y: 484,
     label: { dx: 14, dy: 0, align: 'start', text: 'Downtown\nCrossing' },
@@ -174,7 +181,7 @@ export const STATIONS: Station[] = [
   {
     id: 'north',
     name: 'North Station',
-    lines: ['green'],
+    lines: ['green', 'orange'],
     x: 292,
     y: 288,
     label: { dx: 14, dy: -4, align: 'start', text: 'North\nStation' },
@@ -185,11 +192,11 @@ export const STATIONS: Station[] = [
   {
     id: 'haymarket',
     name: 'Haymarket',
-    lines: ['green'],
+    lines: ['green', 'orange'],
     x: 318,
     y: 322,
     label: { dx: 14, dy: 0, align: 'start' },
-    story: "Haymarket's open-air produce stalls have run here for over two centuries.",
+    story: "Haymarket's open-air produce stalls have run here for nearly two centuries, since the 1830s.",
     game: { title: 'Market Haggle', genre: 'Bargain', time: '~1 min' },
     fact: { no: 4, title: 'Stalls of Old' },
   },
@@ -222,7 +229,7 @@ export const STATIONS: Station[] = [
     x: 224,
     y: 500,
     label: { dx: 0, dy: 20, align: 'center' },
-    story: "The Public Garden's Swan Boats have been pedaled by hand since 1877.",
+    story: "The Public Garden's Swan Boats have been pedaled by foot since 1877.",
     game: { title: 'Swan Paddle', genre: 'Rhythm', time: '~1 min' },
     fact: { no: 7, title: 'The Swan Boats' },
   },
@@ -259,6 +266,84 @@ export const STATIONS: Station[] = [
     game: { title: 'Neon Night', genre: 'Pattern', time: '~30 sec' },
     fact: { no: 10, title: 'The Neon Sign' },
   },
+  // Orange Line — Revolution Road
+  {
+    id: 'sullivan',
+    name: 'Sullivan Square',
+    lines: ['orange'],
+    x: 306,
+    y: 176,
+    label: { dx: 14, dy: 0, align: 'start', text: 'Sullivan\nSquare' },
+    story: 'Sullivan Square is named for James Sullivan, governor of Massachusetts in 1807 and 1808.',
+    game: { title: "Governor's Orders", genre: 'Memory', time: '~45 sec' },
+    fact: { no: 1, title: 'The Governor' },
+  },
+  {
+    id: 'ccollege',
+    name: 'Community College',
+    lines: ['orange'],
+    x: 300,
+    y: 234,
+    label: { dx: 14, dy: 0, align: 'start', text: 'Community\nCollege' },
+    story: 'The 1775 Battle of Bunker Hill was fought nearby, mostly on Breed\'s Hill.',
+    game: { title: 'Hold the Hill', genre: 'Reflex', time: '~1 min' },
+    fact: { no: 2, title: "Breed's Hill" },
+  },
+  {
+    id: 'state',
+    name: 'State',
+    lines: ['orange'],
+    x: 346,
+    y: 414,
+    label: { dx: 12, dy: 0, align: 'start' },
+    story: 'On July 18, 1776, the Declaration of Independence was read from the Old State House balcony above this station.',
+    game: { title: 'Read It Loud', genre: 'Quick Quiz', time: '~1 min' },
+    fact: { no: 5, title: 'The Balcony' },
+  },
+  {
+    id: 'chinatown',
+    name: 'Chinatown',
+    lines: ['orange'],
+    x: 298,
+    y: 552,
+    label: { dx: -14, dy: 0, align: 'end' },
+    story: "Chinatown's ornate gate, a gift from Taiwan, was dedicated in 1982.",
+    game: { title: 'Gate Keeper', genre: 'Pattern', time: '~45 sec' },
+    fact: { no: 7, title: 'The Gate' },
+  },
+  {
+    id: 'backbay',
+    name: 'Back Bay',
+    lines: ['orange'],
+    x: 204,
+    y: 584,
+    label: { dx: 0, dy: 20, align: 'center' },
+    story: 'Back Bay really was a bay: its tidal flats were filled in during the 1800s to build the neighborhood.',
+    game: { title: 'Fill the Bay', genre: 'Puzzle', time: '~90 sec' },
+    fact: { no: 8, title: 'Land from Water' },
+  },
+  {
+    id: 'ruggles',
+    name: 'Ruggles',
+    lines: ['orange'],
+    x: 152,
+    y: 660,
+    label: { dx: 14, dy: 0, align: 'start' },
+    story: 'In 1987 the Orange Line moved here, replacing the old elevated tracks above Washington Street.',
+    game: { title: 'Tear Down the El', genre: 'Reflex', time: '~45 sec' },
+    fact: { no: 9, title: 'Off the El' },
+  },
+  {
+    id: 'foresthills',
+    name: 'Forest Hills',
+    lines: ['orange'],
+    x: 122,
+    y: 760,
+    label: { dx: 0, dy: 20, align: 'center' },
+    story: "The Arnold Arboretum, founded by Harvard in 1872, is right next door.",
+    game: { title: 'Arboretum Run', genre: 'Sorting', time: '~1 min' },
+    fact: { no: 10, title: 'The Arboretum' },
+  },
 ]
 
 export const ROUTES: Record<LineId, string[]> = {
@@ -286,6 +371,18 @@ export const ROUTES: Record<LineId, string[]> = {
     'copley',
     'hynes',
     'kenmore',
+  ],
+  orange: [
+    'sullivan',
+    'ccollege',
+    'north',
+    'haymarket',
+    'state',
+    'downtown',
+    'chinatown',
+    'backbay',
+    'ruggles',
+    'foresthills',
   ],
 }
 

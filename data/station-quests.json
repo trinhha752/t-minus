@@ -1,23 +1,111 @@
 {
   "_note": "Per-station photo quest: themed text for the player, generic quest id for Gemini (data/photo-quests.json), so it can be done at any platform. Keyed by UI slug (components/run/stations.ts).",
-  "alewife":   { "questId": "arrow",      "prompt": "The alewife herring are lost on their way upstream! Find an arrow to point them home." },
-  "davis":     { "questId": "map",        "prompt": "Davis Square was a busy rail crossing long before the music. Find a map and trace the crossing." },
-  "porter":    { "questId": "seat",       "prompt": "Travelers once rested at the old Porter House hotel. Find a seat and rest yours." },
-  "harvard":   { "questId": "sign",       "prompt": "The statue in Harvard Yard tells three lies. Find a sign with writing on it. Is it telling the truth?" },
-  "central":   { "questId": "door",       "prompt": "City Hall was a gift to Cambridge in 1889. Every gift needs a way in: find a door or a gate." },
-  "kendall":   { "questId": "metal",      "prompt": "MIT crossed the river in 1916 and built in steel. Find something made of metal." },
-  "charles":   { "questId": "light",      "prompt": "Surgeons first used ether here in 1846, under a dome full of light. Find a light." },
-  "park":      { "questId": "stairs",     "prompt": "America's first subway tunnel opened here in 1897. Find the stairs that lead down into it." },
-  "downtown":  { "questId": "line-color", "prompt": "Washington Street once ran along the Neck, the only road into Boston. Find something {color} like the line that runs under it now." },
-  "south":     { "questId": "number",     "prompt": "In 1899 South Station was one of the busiest on Earth. Find a number: a track, a time, anything from the timetable." },
-  "lechmere":  { "questId": "door",       "prompt": "Richard Lechmere's land was seized in the Revolution. Find a door or gate he'd have been locked out of." },
-  "science":   { "questId": "metal",      "prompt": "The Museum of Science sits on top of the old Charles River Dam. Find something metal holding something up." },
-  "north":     { "questId": "line-color", "prompt": "A wave of molasses swept these streets in 1919. Quick, find something {color} before it gets sticky!" },
-  "haymarket": { "questId": "seat",       "prompt": "Haymarket's stalls have sold produce for two centuries. Find a seat where a merchant could set up shop." },
-  "gov":       { "questId": "sign",       "prompt": "Scollay Square vanished under City Hall Plaza. Find a sign with writing: a clue to what used to be here." },
-  "boylston":  { "questId": "light",      "prompt": "Boylston opened in 1897, one of the oldest subway stops in the Americas. Find a light in its old tunnels." },
-  "arlington": { "questId": "stairs",     "prompt": "The Swan Boats are pedaled by hand in the Public Garden upstairs. Find the stairs or escalator up to them." },
-  "copley":    { "questId": "map",        "prompt": "Trinity Church stands on 4,500 wooden pilings just above you. Find a map of what's up there." },
-  "hynes":     { "questId": "number",     "prompt": "Mayor John B. Hynes ran Boston through the 1950s. Find a number he could have signed off on." },
-  "kenmore":   { "questId": "line-color", "prompt": "The neon sign over Kenmore Square has glowed since 1965. Find something {color} that would look good in neon." }
+  "alewife": {
+    "questId": "arrow",
+    "prompt": "The alewife herring are lost on their way upstream! Find an arrow to point them home."
+  },
+  "davis": {
+    "questId": "map",
+    "prompt": "Davis Square was a busy rail crossing long before the music. Find a map and trace the crossing."
+  },
+  "porter": {
+    "questId": "seat",
+    "prompt": "Travelers once rested at the old Porter House hotel. Find a seat and rest yours."
+  },
+  "harvard": {
+    "questId": "sign",
+    "prompt": "The statue in Harvard Yard tells three lies. Find a sign with writing on it. Is it telling the truth?"
+  },
+  "central": {
+    "questId": "door",
+    "prompt": "City Hall was a gift to Cambridge in 1889. Every gift needs a way in: find a door or a gate."
+  },
+  "kendall": {
+    "questId": "metal",
+    "prompt": "MIT crossed the river in 1916 and built in steel. Find something made of metal."
+  },
+  "charles": {
+    "questId": "light",
+    "prompt": "Surgeons first used ether here in 1846, under a dome full of light. Find a light."
+  },
+  "park": {
+    "questId": "stairs",
+    "prompt": "America's first subway tunnel opened here in 1897. Find the stairs that lead down into it."
+  },
+  "downtown": {
+    "questId": "line-color",
+    "prompt": "Washington Street once ran along the Neck, the only road into Boston. Find something {color} like the line that runs under it now."
+  },
+  "south": {
+    "questId": "number",
+    "prompt": "In 1899 South Station was one of the busiest on Earth. Find a number: a track, a time, anything from the timetable."
+  },
+  "lechmere": {
+    "questId": "door",
+    "prompt": "Richard Lechmere's land was seized in the Revolution. Find a door or gate he'd have been locked out of."
+  },
+  "science": {
+    "questId": "metal",
+    "prompt": "The Museum of Science sits on top of the old Charles River Dam. Find something metal holding something up."
+  },
+  "north": {
+    "questId": "line-color",
+    "prompt": "A wave of molasses swept these streets in 1919. Quick, find something {color} before it gets sticky!"
+  },
+  "haymarket": {
+    "questId": "seat",
+    "prompt": "Haymarket's stalls have sold produce for nearly two centuries. Find a seat where a merchant could set up shop."
+  },
+  "gov": {
+    "questId": "sign",
+    "prompt": "Scollay Square vanished under City Hall Plaza. Find a sign with writing: a clue to what used to be here."
+  },
+  "boylston": {
+    "questId": "light",
+    "prompt": "Boylston opened in 1897, one of the oldest subway stops in the Americas. Find a light in its old tunnels."
+  },
+  "arlington": {
+    "questId": "stairs",
+    "prompt": "The Swan Boats are pedaled by foot in the Public Garden upstairs. Find the stairs or escalator up to them."
+  },
+  "copley": {
+    "questId": "map",
+    "prompt": "Trinity Church stands on 4,500 wooden pilings just above you. Find a map of what's up there."
+  },
+  "hynes": {
+    "questId": "number",
+    "prompt": "Mayor John B. Hynes ran Boston through the 1950s. Find a number he could have signed off on."
+  },
+  "kenmore": {
+    "questId": "line-color",
+    "prompt": "The neon sign over Kenmore Square has glowed since 1965. Find something {color} that would look good in neon."
+  },
+  "sullivan": {
+    "questId": "sign",
+    "prompt": "Sullivan Square is named for Governor James Sullivan. Find a sign with a name on it."
+  },
+  "ccollege": {
+    "questId": "stairs",
+    "prompt": "The Battle of Bunker Hill was fought uphill in 1775. Find stairs and take the high ground."
+  },
+  "state": {
+    "questId": "sign",
+    "prompt": "In 1776 the Declaration was read from the balcony right above you. Find a sign with writing and read it out loud!"
+  },
+  "chinatown": {
+    "questId": "door",
+    "prompt": "Chinatown's gate welcomes everyone. Find a door or a gate of your own."
+  },
+  "backbay": {
+    "questId": "line-color",
+    "prompt": "Back Bay was a tidal flat until the 1800s. Find something {color} on solid ground."
+  },
+  "ruggles": {
+    "questId": "metal",
+    "prompt": "The old elevated tracks came down in 1987. Find something metal that's still standing."
+  },
+  "foresthills": {
+    "questId": "light",
+    "prompt": "The Arnold Arboretum next door grows in the sunlight. Find a light down here instead."
+  }
 }

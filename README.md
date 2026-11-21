@@ -48,6 +48,8 @@ Before rebuilding anything, prove the overworld works: a `/play` page with a pix
 3. **The station greets you** ("Welcome to Kendall/MIT · station 6 of 10") with **its own photo quest** ("MIT crossed the river in 1916 and built in steel. Find something made of metal.").
 4. **Reward:** the station's fact flips over on a card with your photo, the station gets stamped, and your **line collection** fills in ("1/10, 9 more to unlock The Iron Archivist. Ride somewhere new!").
 
+The page shows **where you are** on a live mini-map of the T (your dot plus every game station, filled once stamped), and the closest real MBTA station even when it isn't in the game ("You're near Boston University Central, Green Line B, 66 m"). Below that is **one section per line**: Red (Scholars' Realm), Green (Ancient Tunnels) and Orange (Revolution Road), each listing its stations in order, which you've stamped, where you are, and its End Boss.
+
 The server enforces "you have to be there": `/api/minigame/result` refuses a station you haven't checked in at today, and check-in teleport only works in dev or demo mode. Each station's quest text is in `data/station-quests.json`; `npm test` fails if a station in `stations.ts` has none. Play it, then decide:
 
 - **Works and feels fun by 8:00 pm:** commit to the game. Port mini-games into Phaser levels one at a time; the current screens become the menus around it.

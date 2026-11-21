@@ -117,8 +117,8 @@ function MapBackground() {
         {(Object.keys(ROUTES) as LineId[]).map((line) => {
           const pts = ROUTES[line].map((id) => stationById(id))
           const tail =
-            line === 'red' ? ' L 346 600 L 352 860' : ' L 60 548 L -10 590'
-          const head = line === 'red' ? 'M 10 140 L ' : 'M 196 160 L '
+            line === 'red' ? ' L 346 600 L 352 860' : line === 'orange' ? ' L 104 860' : ' L 60 548 L -10 590'
+          const head = line === 'red' ? 'M 10 140 L ' : line === 'orange' ? 'M 312 100 L ' : 'M 196 160 L '
           const d = head + pts.map((p) => `${p.x} ${p.y}`).join(' L ') + tail
           return (
             <g key={line} fill="none" strokeLinecap="round" strokeLinejoin="round">
@@ -300,10 +300,10 @@ export function MapScreen({
 
       {/* Realm progress chips */}
       <div className="absolute inset-x-4 top-[120px] z-10 flex gap-2">
-        {(['red', 'green'] as LineId[]).map((line) => (
+        {(['red', 'green', 'orange'] as LineId[]).map((line) => (
           <div
             key={line}
-            className="flex h-9 flex-1 items-center gap-2 rounded-full bg-white/90 pl-1 pr-3 shadow-[0_2px_8px_rgba(27,31,36,0.1)] backdrop-blur"
+            className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-white/90 pl-1 pr-3 shadow-[0_2px_8px_rgba(27,31,36,0.1)] backdrop-blur"
           >
             <span
               className="flex h-7 w-7 items-center justify-center rounded-full text-white"

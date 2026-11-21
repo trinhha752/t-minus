@@ -19,5 +19,12 @@
   "arlington": "place-armnl",
   "copley": "place-coecl",
   "hynes": "place-hymnl",
-  "kenmore": "place-kencl"
+  "kenmore": "place-kencl",
+  "sullivan": "place-sull",
+  "ccollege": "place-ccmnl",
+  "state": "place-state",
+  "chinatown": "place-chncl",
+  "backbay": "place-bbsta",
+  "ruggles": "place-rugg",
+  "foresthills": "place-forhl"
 }

@@ -20,9 +20,10 @@ const MBTA_TO_SLUG = new Map(
 const FINAL_BOSSES: Record<LineId, string> = {
   red: "The Iron Archivist",
   green: "The Tunnel Warden", // placeholder until the UI names it
+  orange: "The Phantom of the El", // the elevated line torn down in 1987
 };
 
-const TEAM: Record<LineId, TeamLine> = { red: "Red", green: "Green" };
+const TEAM: Record<LineId, TeamLine> = { red: "Red", green: "Green", orange: "Orange" };
 
 export interface ChapterStationDef {
   /** MBTA id, e.g. "place-harsq". What check-in, trivia and the DB use. */

@@ -1,13 +1,13 @@
-// Game screen. Only Harvard has a game so far (Two Truths and a Lie).
+// Game screen. Harvard has its own game (Two Truths and a Lie); every other station plays Landmark Match.
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { PlayView } from "@/components/run/views";
-import { CURRENT_STATION } from "@/components/run/stations";
+import { STATIONS } from "@/components/run/stations";
 
 type Params = Promise<{ id: string }>;
 
 export function generateStaticParams() {
-  return [{ id: CURRENT_STATION }];
+  return STATIONS.map((s) => ({ id: s.id }));
 }
 
 export default function PlayPage({ params }: { params: Params }) {
@@ -20,6 +20,6 @@ export default function PlayPage({ params }: { params: Params }) {
 
 async function Play({ params }: { params: Params }) {
   const { id } = await params;
-  if (id !== CURRENT_STATION) redirect(`/station/${id}`);
+  if (!STATIONS.some((s) => s.id === id)) redirect("/");
   return <PlayView id={id} />;
 }

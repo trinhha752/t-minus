@@ -18,7 +18,12 @@ import { GameFrame } from './GameFrame'
 import { MapScreen } from './MapScreen'
 import { ResultsScreen } from './ResultsScreen'
 import { useRun } from './RunProvider'
-import { CURRENT_STATION, NEXT_STATION, stationById } from './stations'
+import { CURRENT_STATION, NEXT_STATION, stationById, type Station } from './stations'
+import { MATCH_GAME, MatchGame } from './MatchGame'
+
+/** Stations with their own hand-made game; every other station plays Landmark Match for now. */
+const HAS_OWN_GAME = new Set(['harvard'])
+const withGame = (s: Station): Station => (HAS_OWN_GAME.has(s.id) ? s : { ...s, game: MATCH_GAME })
 import { BottomNav, HomeIndicator, StatusBar, type Tab } from './ui'
 
 // Collection and Profile screens aren't ported yet; both go to the /profile stub.
@@ -45,30 +50,32 @@ export function MapView() {
   return (
     <>
       <MapLayer />
-      {/* Demo trigger. Later: open the takeover when /api/boss reports an active delay. */}
-      <button
-        type="button"
-        onClick={() => {
-          startBoss()
-          router.push('/boss')
-        }}
-        className="absolute right-4 top-[166px] z-10 flex h-9 items-center gap-1.5 rounded-full border-2 border-[#F6D47E] bg-[#DA291C] px-3 font-fantasy text-[12px] font-black tracking-[0.05em] text-white shadow-[0_3px_0_#6E120B] active:translate-y-[2px]"
-      >
-        <TriangleAlert size={14} strokeWidth={2.8} />
-        Simulate delay
-      </button>
-      {/* Demo trigger: short End-of-Line Boss fight (demo HP). The real one starts from Alewife's card. */}
-      <button
-        type="button"
-        onClick={() => {
-          startEndBoss(true)
-          router.push('/final-boss')
-        }}
-        className="absolute right-4 top-[210px] z-10 flex h-9 items-center gap-1.5 rounded-full border-2 border-[#F6D47E] bg-[#1B1F24] px-3 font-fantasy text-[12px] font-black tracking-[0.05em] text-[#F6D47E] shadow-[0_3px_0_#000] active:translate-y-[2px]"
-      >
-        <Swords size={14} strokeWidth={2.8} />
-        Final boss (demo)
-      </button>
+      {/* Demo triggers. Later the delay boss opens when /api/boss reports an active delay,
+          and the real End-of-Line Boss starts from Alewife's card. */}
+      <div className="absolute inset-x-4 top-[170px] z-10 flex justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            startBoss()
+            router.push('/boss')
+          }}
+          className="flex h-8 items-center gap-1.5 rounded-full border-2 border-[#F6D47E] bg-[#DA291C] px-2.5 font-fantasy text-[11px] font-black tracking-[0.04em] text-white shadow-[0_3px_0_#6E120B] active:translate-y-[2px]"
+        >
+          <TriangleAlert size={13} strokeWidth={2.8} />
+          Simulate delay
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            startEndBoss(true)
+            router.push('/final-boss')
+          }}
+          className="flex h-8 items-center gap-1.5 rounded-full border-2 border-[#F6D47E] bg-[#1B1F24] px-2.5 font-fantasy text-[11px] font-black tracking-[0.04em] text-[#F6D47E] shadow-[0_3px_0_#000] active:translate-y-[2px]"
+        >
+          <Swords size={13} strokeWidth={2.8} />
+          Final boss (demo)
+        </button>
+      </div>
       <HomeIndicator />
     </>
   )
@@ -132,9 +139,17 @@ export function StationView({ id }: { id: string }) {
             : undefined
         }
         key={id}
-        station={stationById(id)}
+        station={withGame(stationById(id))}
         played={played.has(id)}
         isCurrent={id === CURRENT_STATION}
+        onDemoPlay={
+          id === CURRENT_STATION
+            ? undefined
+            : () => {
+                startGame()
+                router.push(`/station/${id}/play`)
+              }
+        }
         onClose={() => router.push('/')}
         onPlay={() => {
           startGame()
@@ -149,7 +164,23 @@ export function StationView({ id }: { id: string }) {
 
 export function PlayView({ id }: { id: string }) {
   const router = useRouter()
-  const { runId, finishGame } = useRun()
+  const { runId, finishGame, startGame } = useRun()
+  if (!HAS_OWN_GAME.has(id)) {
+    // Every other station plays Landmark Match (it shows its own results).
+    return (
+      <>
+        <MatchGame
+          key={runId}
+          seed={runId}
+          station={stationById(id)}
+          onFinish={(r) => finishGame(r, id)}
+          onPlayAgain={startGame}
+          onMap={() => router.push('/')}
+        />
+        <HomeIndicator tone="light" />
+      </>
+    )
+  }
   return (
     <>
       {/* Keyed on runId: Next keeps this route alive between visits, so a new run must remount the game. */}

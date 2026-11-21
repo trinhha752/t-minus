@@ -174,6 +174,12 @@ async function main() {
   r = await call("POST", "/api/final-boss/forfeit", { fightId: "0" });
   check("final boss: forfeiting a fight you don't have is a 400", r.status === 400);
 
+  // Photo quest: fails open with no Gemini key, so it passes either way here.
+  r = await call("POST", "/api/photo-quest/verify", { questId: "sign", imageBase64: "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACv/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AL+A//9k=", line: "Orange" });
+  check("photo quest: verify answers passed + reason", r.body.ok && typeof r.body.data.passed === "boolean", JSON.stringify(r.body.data));
+  r = await call("POST", "/api/photo-quest/verify", { questId: "nope", imageBase64: "AAAA" });
+  check("photo quest: unknown quest is a 404", r.status === 404);
+
   // Delay boss trivia by line
   r = await call("GET", "/api/trivia?line=Red");
   check("trivia: a line's boss round", r.body.ok && Array.isArray(r.body.data.questions), `${r.body.data?.questions?.length} questions`);

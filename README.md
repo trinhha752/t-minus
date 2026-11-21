@@ -105,6 +105,27 @@ const res = await fetch("/api/minigame/result", {
 - Points are awarded for the first clear per station per day. Replays are allowed but earn 0, so say "practice run" in the UI rather than showing +0.
 - Clearing Park Street counts for both chapters.
 
+### World: photo quests (Gemini Vision)
+
+A different verb from answering: the player stands up, looks around the platform and photographs something. `components/PhotoQuest.tsx` is a full-screen React overlay. Mount it over the game canvas and unmount it from `onComplete`:
+
+```tsx
+import PhotoQuest from "@/components/PhotoQuest";
+
+<PhotoQuest stationName="Harvard" line="Red"
+  onComplete={({ passed, dataUrl }) => { /* dataUrl = the photo: use it as this station's card art */ }} />
+```
+
+- Tasks are in `data/photo-quests.json`: 10 generic ones that work at **any** station (a sign, a map, something metal, something the line's color...). Never station-specific.
+- It opens the back camera, shrinks the photo to 768px JPEG, and sends it to `POST /api/photo-quest/verify { questId, imageBase64, line }`, which returns `{ passed, reason }`. Gemini is told to be generous.
+- **It fails open.** With no Gemini key, an error, or a response slower than 6s, it passes. A judge's photo must never get rejected on stage. The image is never stored or logged.
+- Fail means "try another angle" with free reshoots. No camera means a Skip button. The player is never trapped.
+- A "Demo: pass without camera" button shows in dev, or when `NEXT_PUBLIC_DEMO_MODE=1`, in case the venue blocks camera access.
+- **The camera needs HTTPS.** `localhost` works, but a phone pointed at your laptop's IP silently fails. Test on a phone with `npx next dev --experimental-https`, a tunnel, or the deployed Vultr URL.
+- **iOS:** the shutter must be a direct tap. Don't trigger capture from a timer or a promise.
+- Try it on `/dev` → "Photo quest".
+- The photo isn't uploaded anywhere or awarded points by the server yet; the parent decides what to do with `dataUrl`.
+
 ### Bosses and screens
 
 | Screen | Route | Notes |

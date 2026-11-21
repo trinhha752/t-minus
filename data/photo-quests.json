@@ -1,0 +1,12 @@
+[
+  { "id": "line-color", "prompt": "Find something {color}: the color of the {line} Line.", "target": "an object or surface that is mostly {color}" },
+  { "id": "sign", "prompt": "Photograph a sign with writing on it.", "target": "a sign with visible writing or letters" },
+  { "id": "map", "prompt": "Find a map or a diagram.", "target": "a map, route map, or diagram" },
+  { "id": "metal", "prompt": "Find something made of metal.", "target": "something made of metal" },
+  { "id": "seat", "prompt": "Find somewhere to sit.", "target": "a bench, seat, or chair" },
+  { "id": "stairs", "prompt": "Photograph some stairs or an escalator.", "target": "stairs, steps, or an escalator" },
+  { "id": "light", "prompt": "Find a light.", "target": "a light, lamp, or light fixture" },
+  { "id": "door", "prompt": "Find a door or a gate.", "target": "a door, gate, or turnstile" },
+  { "id": "arrow", "prompt": "Find an arrow pointing somewhere.", "target": "an arrow, on a sign or the floor or anywhere" },
+  { "id": "number", "prompt": "Find a number written anywhere.", "target": "a visible written or printed number" }
+]

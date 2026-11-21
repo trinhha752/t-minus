@@ -12,6 +12,7 @@ import {
   BOSS_MIN_LATE_TRAINS,
   bossHpFor,
 } from "./scoring";
+import { GRANT_BUFFS_SQL } from "./progress";
 import type { BossState, RouteId, TeamLine } from "../types";
 import { ALL_TEAMS, routeToTeam } from "../types";
 
@@ -191,6 +192,8 @@ export async function damageBoss(
          ON CONFLICT DO NOTHING`,
         [boss.id, `Beat the ${line} Line boss`]
       );
+      // ...and a damage buff for their next final boss fight.
+      await c.query(GRANT_BUFFS_SQL, [boss.id]);
     }
 
     void userId; // the caller records the answer row itself

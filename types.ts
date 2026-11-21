@@ -194,6 +194,116 @@ export interface TriviaAnswerResult {
   bossHpRemaining: number | null;
 }
 
+/* ---------- progression: stations are levels, a boss ends each chapter ---------- */
+
+/**
+ * The game engines. Each station reskins one of these, so a new station is
+ * new art and copy, not a new game. The frontend picks the component by engine.
+ */
+export type GameEngine =
+  | "timing"
+  | "memory"
+  | "pick-the-lie"
+  | "rhythm"
+  | "dodge"
+  | "runner"
+  | "puzzle";
+
+/** POST /api/minigame/result: sent when a mini-game ends. */
+export interface MiniGameResultRequest {
+  stationId: string;
+  /** From the chapter's station entry, e.g. "rooftop-run". */
+  gameId: string;
+  /** Whatever the game scores. Clamped server-side to 0..10000. */
+  score: number;
+  /** Did the player beat the level? Only a cleared run counts toward progress. */
+  cleared: boolean;
+  /** How long the run took. A "cleared" run under 3 seconds is rejected. */
+  durationMs: number;
+}
+
+export interface MiniGameResult {
+  runId: string;
+  pointsEarned: number;
+  /** True the first time this rider clears this station. */
+  stationCleared: boolean;
+  /** Set when this clear unlocked a chapter's final boss. */
+  chapterBossUnlocked: string | null;
+}
+
+export interface ChapterStation {
+  stationId: string;
+  name: string;
+  gameId: string;
+  engine: GameEngine;
+  cleared: boolean;
+  bestScore: number | null;
+}
+
+export interface Chapter {
+  id: string;
+  name: string;
+  line: TeamLine;
+  bossStationId: string;
+  bossName: string;
+  stations: ChapterStation[];
+  /** Every station in the chapter cleared. */
+  bossUnlocked: boolean;
+  bossDefeated: boolean;
+  /** An unfinished final boss fight, to resume. */
+  activeFightId: string | null;
+}
+
+/** Earned by helping beat a delay (mini) boss. Spent on a final boss fight. */
+export interface Buff {
+  id: string;
+  type: "boss_damage";
+  /** 0.5 means +50% damage. */
+  value: number;
+  grantedAt: string;
+  expiresAt: string;
+  /** Which line's mini boss granted it. */
+  fromLine: TeamLine | null;
+}
+
+/** GET /api/progress */
+export interface Progress {
+  chapters: Chapter[];
+  /** Unspent, unexpired buffs. */
+  buffs: Buff[];
+}
+
+/** POST /api/final-boss/start { chapterId } -> FinalBossFight (resumes an open one). */
+export interface FinalBossStartRequest {
+  chapterId: string;
+}
+
+export interface FinalBossFight {
+  id: string;
+  chapterId: string;
+  bossName: string;
+  hpTotal: number;
+  hpRemaining: number;
+  /** 1 plus every buff spent on this fight. */
+  damageMultiplier: number;
+  defeated: boolean;
+  startedAt: string;
+  endedAt: string | null;
+}
+
+/** POST /api/final-boss/hit { fightId }: one landed attack (a cleared round or a correct answer). */
+export interface FinalBossHitRequest {
+  fightId: string;
+}
+
+export interface FinalBossHitResult {
+  damage: number;
+  hpRemaining: number;
+  defeated: boolean;
+  /** Bonus points, only on the killing blow. */
+  pointsEarned: number;
+}
+
 /* ---------- leaderboard ---------- */
 
 export interface LeaderboardRow {

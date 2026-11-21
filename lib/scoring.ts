@@ -9,7 +9,28 @@ export const POINTS = {
   guessExact: 50,
   guessPenaltyPerMinute: 10,
   bossDefeatedBonus: 100,
+  /** First clear of a station's mini-game each day. Replays score nothing. */
+  minigameClear: 25,
+  finalBossDefeated: 200,
 } as const;
+
+/* ---------- progression ---------- */
+
+/** Final bosses are solo, so fixed HP: about 10 landed hits unbuffed. */
+export const FINAL_BOSS_HP = 100;
+export const FINAL_BOSS_DAMAGE_PER_HIT = 10;
+/** Minimum gap between hits on one fight, so a script cannot spam the endpoint. */
+export const FINAL_BOSS_HIT_COOLDOWN_MS = 1_500;
+
+/** What a mini boss gives every rider who fought it. */
+export const BUFF_DAMAGE_BONUS = 0.5; // +50% damage
+export const BUFF_LIFETIME_HOURS = 24;
+/** Buffs stack, but the multiplier never goes above this. */
+export const MAX_DAMAGE_MULTIPLIER = 2;
+
+/** Server-side sanity limits on a submitted mini-game run. */
+export const MINIGAME_MAX_SCORE = 10_000;
+export const MINIGAME_MIN_CLEAR_MS = 3_000;
 
 /** Damage one correct answer does to a boss, instead of solo points. */
 export const BOSS_DAMAGE_PER_CORRECT = 10;

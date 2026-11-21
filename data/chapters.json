@@ -1,0 +1,28 @@
+[
+  {
+    "id": "green-trunk",
+    "name": "Under the Common",
+    "line": "Green",
+    "bossStationId": "place-kencl",
+    "bossName": "The Kenmore Colossus",
+    "stations": [
+      { "stationId": "place-pktrm", "gameId": "frog-pond-skate", "engine": "dodge" },
+      { "stationId": "place-boyls", "gameId": "rooftop-run", "engine": "runner" },
+      { "stationId": "place-armnl", "gameId": "garden-or-graveyard", "engine": "puzzle" },
+      { "stationId": "place-coecl", "gameId": "the-last-mile", "engine": "rhythm" }
+    ]
+  },
+  {
+    "id": "red-river",
+    "name": "Across the River",
+    "line": "Red",
+    "bossStationId": "place-pktrm",
+    "bossName": "The Longfellow Wraith",
+    "stations": [
+      { "stationId": "place-harsq", "gameId": "statue-of-three-lies", "engine": "pick-the-lie" },
+      { "stationId": "place-cntsq", "gameId": "graffiti-from-memory", "engine": "memory" },
+      { "stationId": "place-knncl", "gameId": "crack-the-coin", "engine": "puzzle" },
+      { "stationId": "place-chmnl", "gameId": "viking-coxswain", "engine": "rhythm" }
+    ]
+  }
+]

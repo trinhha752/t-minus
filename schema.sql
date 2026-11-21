@@ -182,3 +182,60 @@ CREATE TABLE IF NOT EXISTS line_status (
   clean_polls         INTEGER NOT NULL DEFAULT 0,
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+/* ---------- progression: stations as levels, a boss at the end ---------- */
+
+-- Every mini-game played. A second hypertable: it feeds progress, the
+-- leaderboard and any "plays over time" chart.
+CREATE TABLE IF NOT EXISTS minigame_runs (
+  id            TEXT NOT NULL,
+  user_id       TEXT NOT NULL REFERENCES users(id),
+  station_id    TEXT NOT NULL REFERENCES stations(id),
+  game_id       TEXT NOT NULL,
+  score         INTEGER NOT NULL,
+  cleared       BOOLEAN NOT NULL,
+  duration_ms   INTEGER NOT NULL,
+  points_earned INTEGER NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+SELECT create_hypertable(
+  'minigame_runs', 'created_at',
+  if_not_exists => TRUE,
+  chunk_time_interval => INTERVAL '1 day'
+);
+
+CREATE INDEX IF NOT EXISTS minigame_runs_by_user
+  ON minigame_runs (user_id, station_id, created_at DESC);
+
+-- A rider's end-of-chapter boss. Personal, unlike boss_events (the shared,
+-- delay-spawned mini boss), so it lives in its own table keyed by rider.
+CREATE TABLE IF NOT EXISTS final_boss_fights (
+  id                BIGSERIAL PRIMARY KEY,
+  user_id           TEXT NOT NULL REFERENCES users(id),
+  chapter_id        TEXT NOT NULL,
+  hp_total          INTEGER NOT NULL,
+  hp_remaining      INTEGER NOT NULL,
+  damage_multiplier NUMERIC(4,2) NOT NULL DEFAULT 1,
+  started_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_hit_at       TIMESTAMPTZ,
+  ended_at          TIMESTAMPTZ,
+  defeated          BOOLEAN NOT NULL DEFAULT false
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS one_open_fight_per_chapter
+  ON final_boss_fights (user_id, chapter_id) WHERE ended_at IS NULL;
+
+-- Granted to everyone who fought a mini boss when it goes down. Spent when
+-- the rider starts a final boss fight, or lost when it expires.
+CREATE TABLE IF NOT EXISTS buffs (
+  id                   BIGSERIAL PRIMARY KEY,
+  user_id              TEXT NOT NULL REFERENCES users(id),
+  type                 TEXT NOT NULL CHECK (type IN ('boss_damage')),
+  value                NUMERIC(4,2) NOT NULL,
+  source_boss_event_id BIGINT REFERENCES boss_events(id),
+  granted_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at           TIMESTAMPTZ NOT NULL,
+  used_in_fight_id     BIGINT REFERENCES final_boss_fights(id),
+  UNIQUE (user_id, source_boss_event_id)
+);

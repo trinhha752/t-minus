@@ -62,6 +62,11 @@ async function main() {
   r = await call("POST", "/api/checkin", { stationId: "place-harsq", lat: 42.3563, lon: -71.0624 });
   check("checkin: too far without teleport", r.body.ok && r.body.data.reason === "too_far", `${r.body.data?.metresAway}m`);
 
+  r = await call("GET", "/api/me");
+  check("me: Park Street is stamped after check-in",
+    r.body.ok && r.body.data.stampedStationIds.includes("place-pktrm") && r.body.data.points > 0,
+    `${r.body.data?.points} pts, stamps ${r.body.data?.stampedStationIds?.join(",")}`);
+
   // Trivia
   r = await call("GET", "/api/trivia?stop=place-pktrm&wait=300");
   const qs = r.body.data?.questions ?? [];

@@ -55,6 +55,69 @@ Cut entirely: Solana, real email auth (type a name and pick a line instead), AR.
 - **World:** SVG map with all four lines and the 5 demo stations, trains rendered from `/api/trains` (mock is fine).
 - **Game feel:** the juice layer (sound helper, `usePointsBurst`, shake and flash classes) plus a full-screen trivia card that uses it.
 
+## What to build next (per role)
+
+The backend is live on `main`. Open <http://localhost:3000/dev> to see every route working, then build against the real routes below. You need `DATABASE_URL` and `MBTA_API_KEY` in `.env.local`; ask Trinh for them by DM.
+
+### Mini-games
+
+When a game ends, report the result once:
+
+```ts
+const res = await fetch("/api/minigame/result", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ stationId: "place-boyls", gameId: "rooftop-run", score: 420, cleared: true, durationMs: 30000 }),
+}).then((r) => r.json());
+// res.data = { runId, pointsEarned, stationCleared, chapterBossUnlocked }
+// chapterBossUnlocked is a chapter id (e.g. "green-trunk") when this clear unlocked a final boss: show the unlock moment.
+```
+
+- `stationId` and `gameId` must be a pair from `data/chapters.json`. Any other pair gets a 400. To add or rename a game, ask Trinh to update that file.
+- A cleared run must last at least 3s (`durationMs >= 3000`), or it's rejected as fake. Scores are capped at 10,000.
+- Points are awarded for the first clear per station per day. Replays are allowed but earn 0, so say "practice run" in the UI rather than showing +0.
+- Build each **engine** once (`GameEngine` in `types.ts`: timing, memory, pick-the-lie, rhythm, dodge, runner, puzzle) and reskin it per station. One finished engine beats four half-built games.
+- Suggested order: `rooftop-run` (runner) first, then a second station on the same engine.
+
+### UI: map
+
+Station positions are already computed. Don't hand-place them; read `data/map-layout.json`:
+
+```ts
+import layout from "@/data/map-layout.json";
+import { project } from "@/lib/map-projection";
+
+layout.viewBox;                  // "0 0 1000 1000", north is up
+layout.paths["Red"];             // [[...Ashmont branch ids], [...Braintree branch ids]], in order
+layout.paths["Green-B"];         // every route is an array of branches; draw one polyline per branch
+layout.stations["place-pktrm"];  // { name, routes, x, y }
+project(layout.projection, train.lat, train.lon); // live trains from /api/trains -> same x/y space
+```
+
+- Downtown is spread out automatically, so Park Street to Downtown Crossing is about 17px apart on a 390px phone. Regenerate with `npm run build:map`.
+- **Tapping:** some stops are still about 4px apart, such as the street-level Green Line stops (BU Central and BU East). Don't give each dot its own small hit area. Put one tap handler on the board and pick the **nearest station within about 22px**. Add pinch-to-zoom if there's time.
+- **Stamped stations:** use `stampedStationIds` from `GET /api/me`. A station counts as stamped once the rider has checked in there or cleared its mini-game.
+- **Trains:** poll `GET /api/trains?line=all` every 15s. Move each train with `transform: translate(x, y)` and `key={train.id}`, with a transition of about 10s, so trains glide between polls instead of jumping. Don't animate SVG `cx`/`cy`; it's unreliable on iPhone Safari.
+- **Tilted 3D board:** `translateZ` and `preserve-3d` do nothing on elements inside an `<svg>`. Draw only the line paths in SVG. Put station dots, trains and the boss banner in an absolutely positioned HTML layer on top, so they can lift off the board.
+- Line colors: Red `#DA291C`, Orange `#ED8B00`, Blue `#2B6CE8`, Green `#00B04F`.
+- Optional: if you build a 3D map (react-three-fiber), give it the same props as the 2D map and keep it behind `NEXT_PUBLIC_MAP_3D=1`, off by default. If it isn't working by 11pm, leave it off.
+
+### UI: chapters and bosses
+
+| Screen | Route | Notes |
+|---|---|---|
+| Chapter screen | `GET /api/progress` | Stations with `cleared` and `bestScore`, plus `bossUnlocked`, `bossDefeated`, `activeFightId` (resume it), and buffs |
+| Final boss fight | `POST /api/final-boss/start {chapterId}` then `POST /api/final-boss/hit {fightId}` | One hit per 1.5s. Faster hits return **429**: play a "whiff" animation, not an error. `defeated: true` comes with +200 points. |
+| Delay boss takeover | `GET /api/boss` every 15s | `active: true` on a line means a delay boss is up. Show HP from `hpRemaining` and `hpTotal`. Trivia answers damage it. |
+| Profile and header | `GET /api/me` | Points, level, streak, badges, stamps |
+| Next trains | `GET /api/predictions?stop=<id>` | `secondsAway` can be negative: the train is at the platform, so show "Boarding" |
+
+Still mock data, with final shapes (build against them now): `/api/leaderboard`, `/api/guess`, `/api/guess/[id]`, `/api/chat`.
+
+### Everyone: not code, but blocking
+
+`data/trivia.json` has 12 questions, all `verified=false`, so none are served and the delay boss can't be fought. Pick a few, check each `sourceUrl`, and tell Trinh which ones are correct. That takes about 20 minutes.
+
 ## Backend API
 
 Run `npm run dev`, then hit `http://localhost:3000`. Everything returns `{ ok: true, data }` or `{ ok: false, error }`; shapes are in `types.ts`.
@@ -67,6 +130,7 @@ curl "localhost:3000/api/trains?line=Red"                   # line = Red | Orang
 
 # Delay (mini) boss: shared by everyone on the line
 curl "localhost:3000/api/boss"                              # 4 lines: active, hp, lateTrains, avgDelaySeconds
+curl -c jar.txt -b jar.txt localhost:3000/api/me            # rider: points, level, streak, badges, stampedStationIds
 
 # Check in (teleport skips the GPS check, for the demo)
 curl -c jar.txt -b jar.txt -X POST localhost:3000/api/checkin -H 'content-type: application/json' \
@@ -87,7 +151,7 @@ curl -c jar.txt -b jar.txt -X POST localhost:3000/api/final-boss/hit -H 'content
   -d '{"fightId":"<id from start>"}'                        # one landed attack; max one per 1.5s
 ```
 
-Still mock (shapes are final, data is not): `/api/me`, `/api/leaderboard`, `/api/guess`, `/api/guess/[id]`, `/api/chat`.
+Still mock (shapes are final, data is not): `/api/leaderboard`, `/api/guess`, `/api/guess/[id]`, `/api/chat`.
 
 ### Testing the backend
 

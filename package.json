@@ -21,6 +21,7 @@
     "build:map": "tsx --env-file=.env.local scripts/build-map-layout.ts"
   },
   "dependencies": {
+    "lucide-react": "^1.77.0",
     "next": "16.4.6",
     "pg": "^8.23.1",
     "react": "19.3.0",

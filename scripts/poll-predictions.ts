@@ -25,11 +25,12 @@ interface Row {
 }
 
 async function collectRoute(route: RouteId): Promise<Row[]> {
-  const doc = await mbtaGet(
-    "/predictions",
-    { "filter[route]": route, include: "schedule", "page[limit]": "200" },
-    `poll:${route}`
-  );
+  // No page limit: a page of 200 could cut off part of a busy route.
+  const doc = await mbtaGet({
+    endpoint: "/predictions",
+    params: { "filter[route]": route, include: "schedule" },
+    key: `poll:${route}`,
+  });
 
   // Scheduled times arrive in `included`, keyed by schedule id.
   const scheduled = new Map<string, string>();

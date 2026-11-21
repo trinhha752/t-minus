@@ -27,63 +27,93 @@ interface JsonApiResource {
   attributes: Record<string, unknown>;
   relationships?: Record<string, { data?: { id: string; type: string } | null }>;
 }
-interface JsonApiDoc {
+export interface JsonApiDoc {
   data: JsonApiResource[];
   included?: JsonApiResource[];
 }
 
-/* ---------- core fetch ---------- */
-
-function seedPath(file: string) {
-  return path.join(process.cwd(), "public", "seed", file);
+/** One MBTA request: endpoint, query params, and its key in the seed file. */
+export interface MbtaRequest {
+  endpoint: string;
+  params: Record<string, string>;
+  key: string;
 }
 
-/** Saved real responses, used when USE_SEED=1 or the network fails. */
+/* ---------- core fetch ---------- */
+
+export const SEED_FILE = path.join(process.cwd(), "public", "seed", "mbta-fallback.json");
+
+/** The seed file: verbatim MBTA responses by key, plus when they were saved. */
+export type SeedFile = { _savedAt?: string } & Record<string, JsonApiDoc | string | undefined>;
+
+const TIME_FIELDS = ["arrival_time", "departure_time", "updated_at"];
+
+/**
+ * Saved real responses, used when USE_SEED=1 or the network fails.
+ *
+ * Every timestamp is moved forward by (now - savedAt), so a train that was
+ * 4 minutes out when the file was saved is still 4 minutes out on stage.
+ * Without the shift, every saved arrival would be in the past and filtered out.
+ */
 function readSeed(key: string): JsonApiDoc | null {
   try {
-    const raw = fs.readFileSync(seedPath("mbta-fallback.json"), "utf8");
-    const all = JSON.parse(raw) as Record<string, JsonApiDoc>;
-    return all[key] ?? null;
+    const all = JSON.parse(fs.readFileSync(SEED_FILE, "utf8")) as SeedFile;
+    const doc = all[key];
+    if (!doc || typeof doc === "string") return null;
+
+    const savedAt = all._savedAt ? Date.parse(all._savedAt) : NaN;
+    if (Number.isNaN(savedAt)) return doc;
+    const shift = Date.now() - savedAt;
+
+    const move = (r: JsonApiResource): JsonApiResource => {
+      const attributes = { ...r.attributes };
+      for (const f of TIME_FIELDS) {
+        const v = attributes[f];
+        if (typeof v === "string") attributes[f] = new Date(Date.parse(v) + shift).toISOString();
+      }
+      return { ...r, attributes };
+    };
+    return { data: doc.data.map(move), included: doc.included?.map(move) };
   } catch {
     return null;
   }
+}
+
+/** One live request, no cache and no fallback. Used directly to save the seed file. */
+export async function mbtaFetchLive({ endpoint, params }: MbtaRequest): Promise<JsonApiDoc> {
+  const qs = new URLSearchParams(params).toString();
+  const headers: Record<string, string> = { Accept: "application/vnd.api+json" };
+  if (process.env.MBTA_API_KEY) headers["x-api-key"] = process.env.MBTA_API_KEY;
+
+  const res = await fetch(`${BASE}${endpoint}?${qs}`, { headers, cache: "no-store" });
+  if (!res.ok) throw new Error(`MBTA ${res.status} for ${endpoint}`);
+  return (await res.json()) as JsonApiDoc;
 }
 
 /**
  * GET from the MBTA with a 10s cache.
  * `key` is also the lookup into the seed file, so keep it stable.
  */
-export async function mbtaGet(
-  endpoint: string,
-  params: Record<string, string>,
-  key: string
-): Promise<JsonApiDoc> {
-  const qs = new URLSearchParams(params).toString();
-  const url = `${BASE}${endpoint}?${qs}`;
+export async function mbtaGet(req: MbtaRequest): Promise<JsonApiDoc> {
+  const cacheKey = `${req.endpoint}?${new URLSearchParams(req.params)}`;
 
-  const hit = cache.get(url);
+  const hit = cache.get(cacheKey);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.body as JsonApiDoc;
 
   if (USE_SEED) {
-    const seeded = readSeed(key);
+    const seeded = readSeed(req.key);
     if (seeded) return seeded;
   }
 
   try {
-    const headers: Record<string, string> = { Accept: "application/vnd.api+json" };
-    if (process.env.MBTA_API_KEY) headers["x-api-key"] = process.env.MBTA_API_KEY;
-
-    const res = await fetch(url, { headers, cache: "no-store" });
-    if (!res.ok) throw new Error(`MBTA ${res.status}`);
-
-    const body = (await res.json()) as JsonApiDoc;
-    cache.set(url, { at: Date.now(), body });
+    const body = await mbtaFetchLive(req);
+    cache.set(cacheKey, { at: Date.now(), body });
     return body;
   } catch (e) {
     // Live call failed. Fall back rather than blanking the screen mid-demo.
-    const seeded = readSeed(key);
+    const seeded = readSeed(req.key);
     if (seeded) {
-      console.warn(`[mbta] live call failed, served seed for ${key}:`, e);
+      console.warn(`[mbta] live call failed, served seed for ${req.key}:`, (e as Error).message);
       return seeded;
     }
     throw e;
@@ -105,27 +135,33 @@ function isRoute(v: string | null): v is RouteId {
 
 /* ---------- predictions ---------- */
 
+/** Trips the MBTA has dropped. They come back with both times null. */
+const NOT_STOPPING = new Set(["CANCELLED", "SKIPPED"]);
+
+/** Every prediction at one stop. No page limit: see getPredictions. */
+export function predictionsRequest(stopId: string): MbtaRequest {
+  return {
+    endpoint: "/predictions",
+    params: { "filter[stop]": stopId, sort: "time", include: "trip" },
+    key: `predictions:${stopId}`,
+  };
+}
+
 /**
  * Next arrivals at a station, soonest first.
  *
  * MBTA rules that matter here:
  *  - arrival_time is null at a route's first stop, departure_time is null at
  *    its last stop, and a prediction with BOTH null means the train will not
- *    make the stop. Those get dropped.
+ *    make the stop (schedule_relationship CANCELLED or SKIPPED). Those get dropped.
+ *  - the API sorts those null-time rows FIRST whatever the sort key, so a
+ *    page limit can return nothing but cancellations. A station only has
+ *    ~50 predictions, so we fetch them all and trim here instead.
  *  - we score the guess game against arrival_time when it exists, because
  *    that is the moment a rider actually sees the train.
  */
 export async function getPredictions(stopId: string, limit = 5): Promise<Arrival[]> {
-  const doc = await mbtaGet(
-    "/predictions",
-    {
-      "filter[stop]": stopId,
-      sort: "time",
-      "page[limit]": String(limit * 3), // over-fetch, we drop a lot below
-      include: "trip",
-    },
-    `predictions:${stopId}`
-  );
+  const doc = await mbtaGet(predictionsRequest(stopId));
 
   const headsigns = new Map<string, string>();
   for (const inc of doc.included ?? []) {
@@ -139,6 +175,8 @@ export async function getPredictions(stopId: string, limit = 5): Promise<Arrival
 
   return doc.data
     .map((r): Arrival | null => {
+      if (NOT_STOPPING.has(str(r.attributes.schedule_relationship) ?? "")) return null;
+
       const arrival = str(r.attributes.arrival_time);
       const departure = str(r.attributes.departure_time);
       const time = arrival ?? departure;
@@ -167,14 +205,23 @@ export async function getPredictions(stopId: string, limit = 5): Promise<Arrival
 
 /* ---------- vehicles ---------- */
 
+/**
+ * Every subway vehicle in one call. /api/trains?line=X filters this list
+ * rather than making a call per line: one cached request serves every map,
+ * and the single seed entry covers every line offline.
+ */
+export function vehiclesRequest(): MbtaRequest {
+  const routes = ALL_ROUTES.join(",");
+  return {
+    endpoint: "/vehicles",
+    params: { "filter[route]": routes },
+    key: `vehicles:${routes}`,
+  };
+}
+
 /** Live train positions. Pass no route to get every subway line. */
 export async function getVehicles(route?: RouteId): Promise<Vehicle[]> {
-  const routes = route ? [route] : ALL_ROUTES;
-  const doc = await mbtaGet(
-    "/vehicles",
-    { "filter[route]": routes.join(",") },
-    `vehicles:${routes.join(",")}`
-  );
+  const doc = await mbtaGet(vehiclesRequest());
 
   return doc.data
     .map((r): Vehicle | null => {
@@ -182,6 +229,7 @@ export async function getVehicles(route?: RouteId): Promise<Vehicle[]> {
       const lon = num(r.attributes.longitude);
       const rt = relId(r, "route");
       if (lat === null || lon === null || !isRoute(rt)) return null;
+      if (route && rt !== route) return null;
 
       return {
         id: r.id,
@@ -202,11 +250,11 @@ export async function getVehicles(route?: RouteId): Promise<Vehicle[]> {
 export async function getScheduleByTrip(
   stopId: string
 ): Promise<Map<string, string>> {
-  const doc = await mbtaGet(
-    "/schedules",
-    { "filter[stop]": stopId, sort: "time", "page[limit]": "60" },
-    `schedules:${stopId}`
-  );
+  const doc = await mbtaGet({
+    endpoint: "/schedules",
+    params: { "filter[stop]": stopId, sort: "time", "page[limit]": "60" },
+    key: `schedules:${stopId}`,
+  });
 
   const out = new Map<string, string>();
   for (const r of doc.data) {
@@ -221,15 +269,15 @@ export async function getScheduleByTrip(
 
 /** Active delay alerts per route. Use this if the schedule diff gets fiddly. */
 export async function getDelayAlerts(): Promise<Set<RouteId>> {
-  const doc = await mbtaGet(
-    "/alerts",
-    {
+  const doc = await mbtaGet({
+    endpoint: "/alerts",
+    params: {
       "filter[route]": ALL_ROUTES.join(","),
       "filter[datetime]": "NOW",
       "filter[severity]": "3,4,5,6,7,8,9,10",
     },
-    "alerts:all"
-  );
+    key: "alerts:all",
+  });
 
   const hit = new Set<RouteId>();
   for (const r of doc.data) {
@@ -256,11 +304,11 @@ export async function getDelayAlerts(): Promise<Set<RouteId>> {
  * is there. Check the first run's output before trusting it.
  */
 export async function getStationsForRoute(route: RouteId): Promise<Station[]> {
-  const doc = await mbtaGet(
-    "/stops",
-    { "filter[route]": route, include: "parent_station" },
-    `stops:${route}`
-  );
+  const doc = await mbtaGet({
+    endpoint: "/stops",
+    params: { "filter[route]": route, include: "parent_station" },
+    key: `stops:${route}`,
+  });
 
   const parents = new Map<string, JsonApiResource>();
   for (const inc of doc.included ?? []) {

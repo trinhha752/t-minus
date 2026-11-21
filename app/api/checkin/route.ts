@@ -51,8 +51,11 @@ export async function POST(req: NextRequest) {
     return ok(miss);
   }
 
-  // Distance test, unless this is the demo teleport.
-  if (!body.teleport) {
+  // Distance test, unless this is the demo teleport. Teleport only works in
+  // dev or with NEXT_PUBLIC_DEMO_MODE=1; in production you have to be there.
+  const teleportAllowed =
+    process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_DEMO_MODE === "1";
+  if (!(body.teleport && teleportAllowed)) {
     const { ok: near, metres } = withinCheckinRange(
       body.lat,
       body.lon,

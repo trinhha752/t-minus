@@ -50,6 +50,7 @@ export default function PhotoQuest({
   stationName,
   line = "Red",
   questId,
+  quest: givenQuest,
   onComplete,
   onClose,
 }: {
@@ -57,11 +58,13 @@ export default function PhotoQuest({
   line?: TeamLine;
   /** A specific quest from data/photo-quests.json; random if omitted. */
   questId?: string;
+  /** A ready-made quest, e.g. stationQuest("harvard") with the station's themed text. Wins over questId. */
+  quest?: Quest;
   onComplete: (result: PhotoQuestResult) => void;
   /** Optional close button. */
   onClose?: () => void;
 }) {
-  const [quest] = useState<Quest>(() => (questId && questFor(questId, line)) || randomQuest(line));
+  const [quest] = useState<Quest>(() => givenQuest ?? ((questId && questFor(questId, line)) || randomQuest(line)));
   const [phase, setPhase] = useState<Phase>("starting");
   const [photo, setPhoto] = useState<string | null>(null);
   const [reason, setReason] = useState("");

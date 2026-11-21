@@ -109,6 +109,11 @@ async function main() {
 
   r = await call("POST", "/api/final-boss/start", { chapterId: "red" });
   check("final boss: locked before the chapter is cleared", r.status === 400);
+  r = await call("POST", "/api/minigame/result", { stationId: "alewife", score: 500, cleared: true, durationMs: 30000 });
+  check("minigame: refused without a check-in at that station", r.status === 400 && /check in/.test(r.body.error ?? ""));
+  r = await call("POST", "/api/checkin", { stationId: "alewife", lat: 0, lon: 0 });
+  check("checkin: too far from Alewife without teleport", r.body.data?.reason === "too_far");
+  r = await call("POST", "/api/checkin", { stationId: "alewife", lat: 0, lon: 0, teleport: true });
   r = await call("POST", "/api/minigame/result", { stationId: "alewife", gameId: "rooftop-run", score: 1, cleared: true, durationMs: 30000 });
   check("minigame: wrong game for this station is refused", r.status === 400);
   r = await call("POST", "/api/minigame/result", { stationId: "alewife", score: 1, cleared: true, durationMs: 500 });
@@ -119,6 +124,7 @@ async function main() {
   for (const [i, s] of (red?.stations ?? []).entries()) {
     // Mix id styles: UI slug for most, MBTA id for one, gameId only sometimes.
     const stationId = i === 3 ? s.stationId : s.slug;
+    await call("POST", "/api/checkin", { stationId: s.slug, lat: 0, lon: 0, teleport: true }); // demo teleport
     const body: any = { stationId, score: 500, cleared: true, durationMs: 30000 };
     if (i % 2 === 0) body.gameId = s.gameId;
     r = await call("POST", "/api/minigame/result", body);
@@ -181,6 +187,12 @@ async function main() {
   check("photo quest: verify answers passed + reason", r.body.ok && typeof r.body.data.passed === "boolean", JSON.stringify(r.body.data));
   r = await call("POST", "/api/photo-quest/verify", { questId: "nope", imageBase64: "AAAA" });
   check("photo quest: unknown quest is a 404", r.status === 404);
+
+  // Where am I?
+  r = await call("GET", "/api/stations/nearest?lat=42.37340&lon=-71.11893");
+  check("nearest: standing at Harvard finds Harvard, in range", r.body.data?.slug === "harvard" && r.body.data.inRange === true, `${r.body.data?.metres} m`);
+  r = await call("GET", "/api/stations/nearest?lat=42.3505&lon=-71.1054");
+  check("nearest: at BU, Kenmore is nearest but out of range", r.body.data?.slug === "kenmore" && r.body.data.inRange === false, `${r.body.data?.metres} m`);
 
   // Delay boss trivia by line
   r = await call("GET", "/api/trivia?line=Red");

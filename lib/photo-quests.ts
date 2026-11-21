@@ -3,6 +3,7 @@
 // Every task is satisfiable at ANY station, never station-specific.
 
 import questsJson from "../data/photo-quests.json";
+import stationQuestsJson from "../data/station-quests.json";
 import type { TeamLine } from "../types";
 
 export interface PhotoQuest {
@@ -32,3 +33,19 @@ export function randomQuest(line: TeamLine = "Red"): PhotoQuest {
 }
 
 export const QUEST_IDS = QUESTS.map((q) => q.id);
+
+const STATION_QUESTS = stationQuestsJson as unknown as Record<string, { questId: string; prompt: string }>;
+
+/**
+ * This station's quest: its own themed text, checked against a generic target
+ * so it's always doable. Falls back to a random quest for unknown stations.
+ */
+export function stationQuest(slug: string, line: TeamLine = "Red"): PhotoQuest {
+  const sq = STATION_QUESTS[slug];
+  const base = sq && questFor(sq.questId, line);
+  if (!sq || !base) return randomQuest(line);
+  const color = questFor("line-color", line)!.target.replace(/^an object or surface that is mostly /, "");
+  return { ...base, prompt: sq.prompt.replaceAll("{color}", color) };
+}
+
+export const STATION_QUEST_SLUGS = Object.keys(STATION_QUESTS).filter((k) => !k.startsWith("_"));

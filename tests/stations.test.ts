@@ -42,3 +42,21 @@ test("game ids are stable kebab-case titles, unique within a chapter", () => {
     assert.equal(new Set(ids).size, ids.length, `duplicate game id in ${c.id}`);
   }
 });
+
+import { STATION_QUEST_SLUGS, stationQuest, QUEST_IDS } from "../lib/photo-quests";
+import stationQuests from "../data/station-quests.json";
+
+test("every UI station has its own themed photo quest, on a real generic target", () => {
+  for (const s of STATIONS) {
+    assert.ok(STATION_QUEST_SLUGS.includes(s.id), `add ${s.id} to data/station-quests.json`);
+    const sq = (stationQuests as unknown as Record<string, { questId: string }>)[s.id];
+    assert.ok(QUEST_IDS.includes(sq.questId), `${s.id}: unknown questId ${sq.questId}`);
+  }
+});
+
+test("themed quests fill in the line color", () => {
+  const q = stationQuest("north", "Green");
+  assert.match(q.prompt, /something green before/);
+  assert.equal(q.target, "an object or surface that is mostly green");
+  assert.equal(stationQuest("harvard", "Red").target, "a sign with visible writing or letters");
+});

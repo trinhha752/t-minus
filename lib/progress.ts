@@ -60,6 +60,15 @@ export async function recordMiniGame(
     throw new GameRuleError(`that game is not played here (this station plays "${entry.gameId}")`);
   }
 
+  // You have to be there: a run only counts at a station you checked in at today.
+  const [here] = await q(
+    `SELECT 1 FROM checkins
+      WHERE user_id = $1 AND station_id = $2 AND ${BOSTON_DAY} = (now() AT TIME ZONE 'America/New_York')::date
+      LIMIT 1`,
+    [userId, stationId]
+  );
+  if (!here) throw new GameRuleError("check in at this station first");
+
   const score = Math.max(0, Math.min(MINIGAME_MAX_SCORE, Math.round(Number(body.score) || 0)));
   const durationMs = Math.max(0, Math.round(Number(body.durationMs) || 0));
   if (body.cleared && durationMs < MINIGAME_MIN_CLEAR_MS) {

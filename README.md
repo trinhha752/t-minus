@@ -42,7 +42,13 @@ npm run dev                  # http://localhost:3000
 
 Before rebuilding anything, prove the overworld works: a `/play` page with a pixel T map in Phaser, your car moving along the Red Line with the arrow keys, and real trains from `/api/trains`.
 
-**Built: open <http://localhost:3000/play>.** It runs one station the way it will run inside the game: pick where you are (your real next trains show one per direction, in minutes, then "Arriving", then "Boarding", like the platform sign), tap **Arrive**, **brake your train into the station** once (hold anywhere, stop on the STOP line), and the **photo quest** starts on its own. Passing the photo quest stamps the station, and the braking score is a bonus. Results post to `/api/minigame/result`. Play it, then decide:
+**Built: open <http://localhost:3000/play>.** One station, the way it runs in real life:
+1. **Your phone's location picks the station.** You can only play where you're standing (within 150 m). In dev, or with `NEXT_PUBLIC_DEMO_MODE=1`, a *Demo teleport* picker lets you play anywhere.
+2. **Arrive** checks you in, then you **brake your train into the station** (hold anywhere, stop on the STOP line).
+3. **The station greets you** ("Welcome to Kendall/MIT · station 6 of 10") with **its own photo quest** ("MIT crossed the river in 1916 and built in steel. Find something made of metal.").
+4. **Reward:** the station's fact flips over on a card with your photo, the station gets stamped, and your **line collection** fills in ("1/10, 9 more to unlock The Iron Archivist. Ride somewhere new!").
+
+The server enforces "you have to be there": `/api/minigame/result` refuses a station you haven't checked in at today, and check-in teleport only works in dev or demo mode. Each station's quest text is in `data/station-quests.json`; `npm test` fails if a station in `stations.ts` has none. Play it, then decide:
 
 - **Works and feels fun by 8:00 pm:** commit to the game. Port mini-games into Phaser levels one at a time; the current screens become the menus around it.
 - **Fighting us:** drop it. Keep the current screens and polish their game feel. We lose 2 hours, not the weekend.

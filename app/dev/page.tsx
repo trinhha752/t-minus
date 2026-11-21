@@ -96,6 +96,8 @@ export default function DevConsole() {
   }, []);
 
   async function clearStation(stationId: string, gameId: string) {
+    // Levels only count where you've checked in today: teleport there first (dev only).
+    await api("/api/checkin", { stationId, lat: 0, lon: 0, teleport: true });
     const r = await api<{ pointsEarned: number; chapterBossUnlocked: string | null }>(
       "/api/minigame/result",
       { stationId, gameId, score: 500, cleared: true, durationMs: 30_000 }

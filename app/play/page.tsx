@@ -1,21 +1,31 @@
 "use client";
-// /play — the station flow, end to end, as it will run inside the game:
+// /play — one station, the way it runs in real life:
 //
-//   PLAY → brake into the station (1 stop) → photo quest → results
+//   your phone's location picks the station  →  ARRIVE (check in)
+//   →  brake your train into the station  →  the station greets you
+//   →  its photo quest  →  reward: the station's fact on a card with your photo,
+//      and your collection count toward the line's End Boss
 //
-// The station is cleared when the photo quest passes; the braking score is a
-// bonus. Results post to /api/minigame/result. Your real next trains show at
-// the top, one per direction, the way platform signs show them.
+// You can only play the station you're standing at. In dev, or with
+// NEXT_PUBLIC_DEMO_MODE=1, a "teleport" picker lets you play any station.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import BrakeGame from "@/components/game/BrakeGame";
 import PhotoQuest from "@/components/PhotoQuest";
-import { ROUTES, STATIONS, LINES, type LineId } from "@/components/run/stations";
+import { ROUTES, STATIONS, LINES, primaryLine, type LineId } from "@/components/run/stations";
+import { stationQuest } from "@/lib/photo-quests";
 import type { BrakeResult } from "@/game/brake";
-import type { Arrival, TeamLine } from "@/types";
+import type { Arrival, Chapter, TeamLine } from "@/types";
 
-type Screen = "pick" | "brake" | "photo" | "results";
+type Screen = "home" | "brake" | "welcome" | "photo" | "reward";
+type Where =
+  | { kind: "locating" }
+  | { kind: "here"; slug: string; metres: number }
+  | { kind: "far"; slug: string; metres: number }
+  | { kind: "nolocation" };
+
 const TEAM: Record<LineId, TeamLine> = { red: "Red", green: "Green" };
+const DEMO = process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_DEMO_MODE === "1";
 
 /** How T platform signs show a train: minutes, then Arriving, then Boarding. */
 function signText(secs: number): string {
@@ -24,22 +34,59 @@ function signText(secs: number): string {
   return `${Math.round(secs / 60)} min`;
 }
 
+const post = (url: string, body: unknown) =>
+  fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+    .then((r) => r.json())
+    .catch(() => null);
+
 export default function PlayPage() {
-  const [lineId, setLineId] = useState<LineId>("red");
-  const [slug, setSlug] = useState("harvard");
-  const [screen, setScreen] = useState<Screen>("pick");
+  const [where, setWhere] = useState<Where>({ kind: "locating" });
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [teleport, setTeleport] = useState<string | null>(null);
+  const [screen, setScreen] = useState<Screen>("home");
+  const [error, setError] = useState("");
   const [brake, setBrake] = useState<BrakeResult | null>(null);
   const [photo, setPhoto] = useState<{ passed: boolean; dataUrl: string | null } | null>(null);
   const [saved, setSaved] = useState("");
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [fetchedAt, setFetchedAt] = useState(0);
   const [now, setNow] = useState(0);
+  const [flipped, setFlipped] = useState(false);
   const startedAt = useRef(0);
 
-  const station = STATIONS.find((s) => s.id === slug)!;
+  // The station you're playing: where you are, or the demo teleport.
+  const slug = teleport ?? (where.kind === "here" ? where.slug : null);
+  const station = slug ? STATIONS.find((s) => s.id === slug) ?? null : null;
+  const lineId: LineId = station ? primaryLine(station) : "red";
   const line = LINES[lineId];
 
+  /* ---------- where am I? ---------- */
+  const locate = useCallback(() => {
+    if (!navigator.geolocation) {
+      setWhere({ kind: "nolocation" });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        setCoords({ lat, lon });
+        const r = await fetch(`/api/stations/nearest?lat=${lat}&lon=${lon}`).then((x) => x.json()).catch(() => null);
+        if (!r?.ok) return setWhere({ kind: "nolocation" });
+        setWhere({ kind: r.data.inRange ? "here" : "far", slug: r.data.slug, metres: r.data.metres });
+      },
+      () => setWhere({ kind: "nolocation" }),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 }
+    );
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(locate, 0);
+    return () => clearTimeout(t);
+  }, [locate]);
+
+  /* ---------- live trains at this station ---------- */
   const loadArrivals = useCallback(async () => {
+    if (!slug) return;
     const r = await fetch(`/api/predictions?stop=${slug}&limit=8`).then((x) => x.json()).catch(() => null);
     if (r?.ok) {
       setArrivals(r.data);
@@ -63,51 +110,68 @@ export default function PlayPage() {
       clearInterval(id);
     };
   }, []);
-
-  // One row per direction: the soonest train that hasn't left yet.
   const elapsed = fetchedAt && now ? (now - fetchedAt) / 1000 : 0;
   const byDirection = [0, 1]
     .map((dir) => arrivals.find((a) => a.directionId === dir && a.secondsAway - elapsed > -90))
     .filter((a): a is Arrival => !!a);
 
-  const start = () => {
+  /* ---------- collection progress for this line ---------- */
+  const loadChapter = useCallback(async () => {
+    const r = await fetch("/api/progress").then((x) => x.json()).catch(() => null);
+    if (r?.ok) setChapters(r.data.chapters as Chapter[]);
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(loadChapter, 0);
+    return () => clearTimeout(t);
+  }, [loadChapter]);
+
+  /* ---------- the run ---------- */
+  const arrive = async () => {
+    if (!slug) return;
+    setError("");
+    const r = await post("/api/checkin", {
+      stationId: slug,
+      lat: coords?.lat ?? 0,
+      lon: coords?.lon ?? 0,
+      teleport: !!teleport,
+    });
+    if (!r?.ok) return setError(r?.error ?? "offline");
+    if (!r.data.accepted && r.data.reason !== "already_today") {
+      return setError(r.data.reason === "too_far" ? `You're ${r.data.metresAway} m from the station` : r.data.reason);
+    }
     startedAt.current = Date.now();
     setBrake(null);
     setPhoto(null);
     setSaved("");
+    setFlipped(false);
     setScreen("brake");
   };
 
-  const save = useCallback(
-    async (b: BrakeResult, p: { passed: boolean; dataUrl: string | null }) => {
-      setScreen("results");
-      setSaved("saving…");
-      const res = await fetch("/api/minigame/result", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          stationId: slug,
-          score: b.score,
-          cleared: p.passed,
-          durationMs: Math.max(3000, Date.now() - startedAt.current),
-        }),
-      })
-        .then((x) => x.json())
-        .catch(() => null);
-      setSaved(
-        !res?.ok
-          ? `not saved (${res?.error ?? "offline"})`
-          : res.data.pointsEarned
-            ? `${station.name} stamped! +${res.data.pointsEarned} points${res.data.chapterBossUnlocked ? " · END BOSS UNLOCKED" : ""}`
-            : p.passed
-              ? "Already stamped today: practice run"
-              : "Not stamped: finish the photo quest"
-      );
-    },
-    [slug, station.name]
-  );
+  const finish = async (b: BrakeResult, p: { passed: boolean; dataUrl: string | null }) => {
+    setScreen("reward");
+    setSaved("saving…");
+    const r = await post("/api/minigame/result", {
+      stationId: slug,
+      score: b.score,
+      cleared: p.passed,
+      durationMs: Math.max(3000, Date.now() - startedAt.current),
+    });
+    setSaved(
+      !r?.ok
+        ? `Not saved: ${r?.error ?? "offline"}`
+        : r.data.pointsEarned
+          ? `+${r.data.pointsEarned} points${r.data.chapterBossUnlocked ? " · END BOSS UNLOCKED!" : ""}`
+          : p.passed
+            ? "Already stamped today"
+            : "Not stamped: finish the photo quest"
+    );
+    await loadChapter();
+    setTimeout(() => setFlipped(true), 400);
+  };
 
-  if (screen === "brake") {
+  /* ---------- screens ---------- */
+
+  if (screen === "brake" && station) {
     return (
       <main className="fixed inset-0 bg-[#0b0b12]">
         <BrakeGame
@@ -116,110 +180,185 @@ export default function PlayPage() {
           stops={1}
           onFinish={(r) => {
             setBrake(r);
-            setScreen("photo");
+            setScreen("welcome");
           }}
         />
-        <button onClick={() => setScreen("pick")} className="absolute right-3 top-24 rounded bg-black/60 px-3 py-1 font-mono text-xs text-white">
+        <button onClick={() => setScreen("home")} className="absolute right-3 top-24 rounded bg-black/60 px-3 py-1 font-mono text-xs text-white">
           QUIT
         </button>
       </main>
     );
   }
 
-  if (screen === "photo") {
+  if (screen === "photo" && station) {
     return (
       <PhotoQuest
         stationName={station.name}
         line={TEAM[lineId]}
-        onClose={() => setScreen("pick")}
+        quest={stationQuest(station.id, TEAM[lineId])}
+        onClose={() => setScreen("home")}
         onComplete={(p) => {
           setPhoto(p);
-          if (brake) void save(brake, p);
+          if (brake) void finish(brake, p);
         }}
       />
     );
   }
 
+  const chapter = chapters.find((c) => c.id === lineId) ?? null;
+  const cleared = chapter?.stations.filter((s) => s.cleared).length ?? 0;
+  const total = chapter?.stations.length ?? 0;
+
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-5 bg-[#0b0b12] p-4 font-mono text-white">
       <header>
-        <p className="text-xs tracking-widest opacity-60">T-MINUS · STATION TEST</p>
-        <h1 className="text-2xl font-black">Arrive and explore</h1>
+        <p className="text-xs tracking-widest opacity-60">T-MINUS · {line.realm.toUpperCase()}</p>
+        <h1 className="text-2xl font-black">{station ? station.name : "Where are you?"}</h1>
       </header>
 
-      <div className="flex gap-2">
-        {(Object.keys(ROUTES) as LineId[]).map((l) => (
-          <button
-            key={l}
-            onClick={() => {
-              setLineId(l);
-              setSlug(ROUTES[l][0]);
-            }}
-            className="flex-1 border-4 px-2 py-2 text-sm font-bold"
-            style={{ borderColor: LINES[l].color, background: l === lineId ? LINES[l].color : "transparent" }}
-          >
-            {LINES[l].name.toUpperCase()}
-          </button>
-        ))}
-      </div>
-
-      <label className="flex flex-col gap-1 text-xs opacity-80">
-        YOU ARE AT
-        <select value={slug} onChange={(e) => setSlug(e.target.value)} className="border-4 border-white/20 bg-black p-2 text-base text-white">
-          {ROUTES[lineId].map((id) => (
-            <option key={id} value={id}>
-              {STATIONS.find((s) => s.id === id)?.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {/* Like the platform sign: one row per direction. */}
-      <section className="border-4 p-3" style={{ borderColor: line.color }}>
-        <p className="mb-2 text-xs opacity-60">NEXT TRAINS · LIVE FROM THE MBTA</p>
-        {byDirection.length ? (
-          byDirection.map((a) => {
-            const secs = Math.round(a.secondsAway - elapsed);
-            return (
-              <div key={a.id} className="flex items-baseline justify-between py-1">
-                <span className="text-base">{a.headsign ?? a.route}</span>
-                <span className="text-2xl font-black tabular-nums">{signText(secs)}</span>
-              </div>
-            );
-          })
-        ) : (
-          <p className="text-lg">No trains predicted right now</p>
-        )}
-      </section>
-
-      {screen === "results" && brake && photo && (
-        <section className="flex flex-col gap-2 border-4 border-[#f2c200] p-3">
-          <p className="text-xs opacity-60">{station.name.toUpperCase()}</p>
+      {/* Welcome: the station greets you after you pull in. */}
+      {screen === "welcome" && station && brake && (
+        <section className="flex flex-col gap-3 border-4 p-4" style={{ borderColor: line.color }}>
           <p className="text-sm">
-            🚇 Arrival: <b>{brake.rounds[0]?.label}</b>{" "}
-            {brake.rounds[0]?.errorM == null ? "" : `(${Math.abs(brake.rounds[0].errorM).toFixed(1)} m ${brake.rounds[0].errorM >= 0 ? "past" : "short"})`} +{brake.score}
+            🚇 {brake.rounds[0]?.label}{" "}
+            {brake.rounds[0]?.errorM == null ? "" : `(${Math.abs(brake.rounds[0].errorM).toFixed(1)} m ${brake.rounds[0].errorM >= 0 ? "past" : "short"})`} · +{brake.score}
           </p>
-          <p className="text-sm">📸 Photo quest: <b>{photo.passed ? "CLEARED" : "not done"}</b></p>
-          <p className="text-sm text-[#f2c200]">{saved}</p>
-          {photo.dataUrl && (
-            // eslint-disable-next-line @next/next/no-img-element -- camera data: URL
-            <img src={photo.dataUrl} alt={`Your ${station.name} card`} className="mt-1 h-40 w-32 self-center border-4 border-white object-cover" />
+          <p className="text-xl font-black">Welcome to {station.name}</p>
+          <p className="text-sm opacity-80">
+            {line.realm} · station {ROUTES[lineId].indexOf(station.id) + 1} of {ROUTES[lineId].length}
+          </p>
+          <p className="border-l-4 pl-3 text-base" style={{ borderColor: line.color }}>
+            {stationQuest(station.id, TEAM[lineId]).prompt}
+          </p>
+          <button onClick={() => setScreen("photo")} className="border-4 border-black py-3 text-lg font-black text-black" style={{ background: "#f2c200", boxShadow: "0 6px 0 #8a6d00" }}>
+            📸 START QUEST
+          </button>
+        </section>
+      )}
+
+      {/* Reward: the station's fact, on a card with your photo. */}
+      {screen === "reward" && station && (
+        <section className="flex flex-col items-center gap-3">
+          <div className="relative h-80 w-56 transition-transform duration-700" style={{ perspective: 1000, transformStyle: "preserve-3d", transform: flipped ? "rotateY(180deg)" : "none" }}>
+            <div className="absolute inset-0 grid place-items-center border-4 bg-black text-4xl" style={{ borderColor: line.color, backfaceVisibility: "hidden" }}>
+              ?
+            </div>
+            <div className="absolute inset-0 flex flex-col border-4 bg-[#f4efe3] text-black" style={{ borderColor: line.color, backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
+              {photo?.dataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- camera data: URL
+                <img src={photo.dataUrl} alt={`Your photo at ${station.name}`} className="h-36 w-full object-cover" />
+              ) : (
+                <div className="grid h-36 place-items-center text-white" style={{ background: line.color }}>
+                  {station.name}
+                </div>
+              )}
+              <div className="flex flex-1 flex-col gap-1 p-2">
+                <p className="text-[10px] opacity-60">
+                  FACT {station.fact.no} · {line.realm.toUpperCase()}
+                </p>
+                <p className="text-sm font-black leading-tight">{station.fact.title}</p>
+                <p className="text-xs leading-snug">{station.story}</p>
+              </div>
+            </div>
+          </div>
+          <p className="text-sm text-[#f2c200]">{photo?.passed ? `${station.name} stamped! ` : ""}{saved}</p>
+        </section>
+      )}
+
+      {/* Collection: the reason to ride somewhere new. */}
+      {chapter && (
+        <section className="border-4 border-white/20 p-3">
+          <div className="flex justify-between text-xs">
+            <span>{line.name.toUpperCase()} COLLECTION</span>
+            <span>
+              {cleared}/{total}
+            </span>
+          </div>
+          <div className="mt-2 flex gap-1">
+            {chapter.stations.map((s) => (
+              <div key={s.slug} title={s.name} className="h-3 flex-1" style={{ background: s.cleared ? line.color : "#333", outline: s.slug === slug ? "2px solid #fff" : "none" }} />
+            ))}
+          </div>
+          <p className="mt-2 text-xs opacity-70">
+            {chapter.bossDefeated
+              ? `${chapter.bossName} defeated!`
+              : chapter.bossUnlocked
+                ? `${chapter.bossName} awaits at the end of the line!`
+                : `${total - cleared} more to unlock ${chapter.bossName}. Ride somewhere new!`}
+          </p>
+        </section>
+      )}
+
+      {/* Where you are */}
+      {screen === "home" && (
+        <section className="border-4 p-3" style={{ borderColor: station ? line.color : "#555" }}>
+          {where.kind === "locating" && <p>📍 Finding your station…</p>}
+          {where.kind === "here" && !teleport && <p>📍 You&apos;re at {station?.name} ({where.metres} m)</p>}
+          {where.kind === "far" && !teleport && (
+            <p>
+              📍 Not at a T-Minus station. Nearest is <b>{STATIONS.find((s) => s.id === where.slug)?.name}</b>, {(where.metres / 1000).toFixed(1)} km away. Go there to play!
+            </p>
+          )}
+          {where.kind === "nolocation" && !teleport && <p>📍 Location is off. Allow location to find your station.</p>}
+          {teleport && <p>🛸 Demo teleport: {station?.name}</p>}
+          {DEMO && (
+            <label className="mt-2 flex flex-col gap-1 text-xs opacity-70">
+              DEMO TELEPORT
+              <select
+                value={teleport ?? ""}
+                onChange={(e) => setTeleport(e.target.value || null)}
+                className="border-2 border-white/20 bg-black p-1 text-sm text-white"
+              >
+                <option value="">(use my real location)</option>
+                {(Object.keys(ROUTES) as LineId[]).map((l) => (
+                  <optgroup key={l} label={LINES[l].name}>
+                    {ROUTES[l].map((id) => (
+                      <option key={`${l}-${id}`} value={id}>
+                        {STATIONS.find((s) => s.id === id)?.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
           )}
         </section>
       )}
 
-      <button
-        onClick={start}
-        className="border-4 border-black py-4 text-xl font-black text-black active:translate-y-1"
-        style={{ background: "#f2c200", boxShadow: "0 6px 0 #8a6d00" }}
-      >
-        {screen === "results" ? "PLAY AGAIN" : `ARRIVE AT ${station.name.toUpperCase()}`}
-      </button>
-      <ol className="list-decimal pl-5 text-xs opacity-60">
-        <li>Bring your train in: hold anywhere to brake, stop on the STOP line.</li>
-        <li>Photo quest: find what it asks for on the platform and snap it.</li>
-        <li>Your photo becomes this station&apos;s card, and the station gets stamped.</li>
-      </ol>
+      {/* Your real wait */}
+      {station && screen !== "welcome" && (
+        <section className="border-4 border-white/20 p-3">
+          <p className="mb-1 text-xs opacity-60">NEXT TRAINS · LIVE</p>
+          {byDirection.length ? (
+            byDirection.map((a) => (
+              <div key={a.id} className="flex items-baseline justify-between">
+                <span>{a.headsign ?? a.route}</span>
+                <span className="text-xl font-black tabular-nums">{signText(Math.round(a.secondsAway - elapsed))}</span>
+              </div>
+            ))
+          ) : (
+            <p>No trains predicted right now</p>
+          )}
+        </section>
+      )}
+
+      {error && <p className="text-sm text-[#ff6b5e]">{error}</p>}
+
+      {(screen === "home" || screen === "reward") && (
+        <button
+          onClick={arrive}
+          disabled={!station}
+          className="border-4 border-black py-4 text-xl font-black text-black active:translate-y-1 disabled:opacity-30"
+          style={{ background: "#f2c200", boxShadow: "0 6px 0 #8a6d00" }}
+        >
+          {screen === "reward" ? "PLAY AGAIN" : station ? `ARRIVE AT ${station.name.toUpperCase()}` : "GO TO A STATION"}
+        </button>
+      )}
+      {screen === "reward" && (
+        <button onClick={() => setScreen("home")} className="border-4 border-white/30 py-2 text-sm font-bold">
+          DONE
+        </button>
+      )}
     </main>
   );
 }

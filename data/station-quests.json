@@ -107,5 +107,69 @@
   "foresthills": {
     "questId": "light",
     "prompt": "The Arnold Arboretum next door grows in the sunlight. Find a light down here instead."
+  },
+  "blandford": {
+    "questId": "sign",
+    "prompt": "The B line climbs out of its tunnel here. Find a sign that tells you where you are."
+  },
+  "bueast": {
+    "questId": "metal",
+    "prompt": "Comm Ave here was once Boston's Automobile Row. Find something metal that could have come off an old car."
+  },
+  "bucentral": {
+    "questId": "line-color",
+    "prompt": "Whatever you do, don't step on the BU seal. Find something {color} to step on instead."
+  },
+  "amory": {
+    "questId": "seat",
+    "prompt": "The B branch is so slow that runners have outraced it. Find a seat while you wait."
+  },
+  "babcock": {
+    "questId": "light",
+    "prompt": "In 1920 a 26-inning game nearby ended only when it got too dark. Find a light to keep playing."
+  },
+  "packards": {
+    "questId": "arrow",
+    "prompt": "Comm Ave bends toward Allston and Brighton here. Find an arrow pointing the way."
+  },
+  "harvardave": {
+    "questId": "seat",
+    "prompt": "Every September 1, Allston's sidewalks fill with left-behind furniture. Find a seat nobody's moving."
+  },
+  "stmarys": {
+    "questId": "light",
+    "prompt": "In 1889 the first electric streetcars ran along Beacon Street. Find a light that runs on electricity."
+  },
+  "hawes": {
+    "questId": "door",
+    "prompt": "Hawes Street is the quiet stop on the C branch. Sneak up and find a door or a gate."
+  },
+  "kent": {
+    "questId": "stairs",
+    "prompt": "Kent Street sits in the middle of Beacon Street. Find stairs, steps or a curb to get off the street."
+  },
+  "stpaul": {
+    "questId": "number",
+    "prompt": "There used to be two St. Paul Street stops. Find a number and count to two."
+  },
+  "coolidge": {
+    "questId": "sign",
+    "prompt": "Coolidge Corner is named for an 1857 general store, not the president. Find a store sign."
+  },
+  "fenway": {
+    "questId": "line-color",
+    "prompt": "One seat at Fenway Park is painted red for Ted Williams's 502-foot homer. Find something {color} of your own."
+  },
+  "prudential": {
+    "questId": "light",
+    "prompt": "The Prudential Tower rises 749 feet over old railroad yards. Find a light to light the tower."
+  },
+  "northeastern": {
+    "questId": "number",
+    "prompt": "The first modern World Series was played here in 1903. Find a number for the scoreboard."
+  },
+  "mfa": {
+    "questId": "door",
+    "prompt": "Nothing in the Gardner Museum nearby is ever allowed to move. Find a door that stays exactly where it is."
   }
 }

@@ -13,6 +13,7 @@ export function StationCard({
   onPlay,
   onViewCollection,
   onBoss,
+  onDemoPlay,
 }: {
   station: Station
   played: boolean
@@ -22,6 +23,8 @@ export function StationCard({
   onViewCollection: () => void
   /** Set for end-of-line stations: opens the End-of-Line Boss fight. */
   onBoss?: () => void
+  /** Demo only: play this station's game without riding there. */
+  onDemoPlay?: () => void
 }) {
   const [closing, setClosing] = useState(false)
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -187,6 +190,17 @@ export function StationCard({
                   : 'Check-in unlocks when you reach this station.'}
               </p>
             </>
+          )}
+          {onDemoPlay && (
+            <button
+              type="button"
+              onClick={() => close(onDemoPlay)}
+              className="mt-1 flex h-11 w-full items-center justify-center gap-1.5 text-[14px] font-bold underline underline-offset-4"
+              style={{ color: line.dark }}
+            >
+              <Play size={14} strokeWidth={3} />
+              Try the game here (demo)
+            </button>
           )}
         </div>
       </section>

@@ -7,6 +7,7 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-fantasy: var(--font-cinzel), 'Times New Roman', serif;
   --font-fell: var(--font-im-fell), Georgia, serif;
+  --font-pixel: var(--font-pixelify), ui-monospace, monospace;
 }
 
 @theme {

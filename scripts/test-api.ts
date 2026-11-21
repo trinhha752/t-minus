@@ -191,8 +191,10 @@ async function main() {
   // Where am I?
   r = await call("GET", "/api/stations/nearest?lat=42.37340&lon=-71.11893");
   check("nearest: standing at Harvard finds Harvard, in range", r.body.data?.slug === "harvard" && r.body.data.inRange === true, `${r.body.data?.metres} m`);
-  r = await call("GET", "/api/stations/nearest?lat=42.3505&lon=-71.1054");
-  check("nearest: at BU, Kenmore is nearest but out of range", r.body.data?.slug === "kenmore" && r.body.data.inRange === false, `${r.body.data?.metres} m`);
+  r = await call("GET", "/api/stations/nearest?lat=42.34973&lon=-71.10622");
+  check("nearest: at BU (the venue), BU Central is playable", r.body.data?.slug === "bucentral" && r.body.data.inRange === true, `${r.body.data?.metres} m`);
+  r = await call("GET", "/api/stations/nearest?lat=42.3601&lon=-71.0942");
+  check("nearest: between stations, out of range", r.body.data?.inRange === false, `${r.body.data?.name}, ${r.body.data?.metres} m`);
 
   // Delay boss trivia by line
   r = await call("GET", "/api/trivia?line=Red");

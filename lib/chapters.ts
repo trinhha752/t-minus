@@ -4,8 +4,8 @@
 // This file only adds what the server needs: the MBTA id for each UI slug
 // (data/station-ids.json) and each chapter's final boss.
 //
-// Chapter = one line's route in the UI (red, green). Its final boss waits at
-// the last station of that route.
+// Chapter = one line in the UI (red, green, orange), every station on it
+// including Green's branches. Its final boss waits at BOSS_STATION below.
 
 import { LINES, ROUTES, STATIONS, type LineId } from "../components/run/stations";
 import stationIdsJson from "../data/station-ids.json";
@@ -22,6 +22,13 @@ const FINAL_BOSSES: Record<LineId, string> = {
   green: "The Tunnel Warden", // placeholder until the UI names it
   orange: "The Phantom of the El", // the elevated line torn down in 1987
 };
+
+/**
+ * Where each line's final boss waits. Explicit, because a line's station list
+ * isn't a single path: Green includes its B/C/D/E branches, so "the last
+ * station in the list" would be wherever the list happens to end.
+ */
+const BOSS_STATION: Record<LineId, string> = { red: "south", green: "kenmore", orange: "foresthills" };
 
 const TEAM: Record<LineId, TeamLine> = { red: "Red", green: "Green", orange: "Orange" };
 
@@ -82,7 +89,7 @@ export const CHAPTERS: ChapterDef[] = (Object.keys(ROUTES) as LineId[]).map((lin
     id: lineId,
     name: LINES[lineId].realm,
     line: TEAM[lineId],
-    bossStationId: stations[stations.length - 1].stationId,
+    bossStationId: SLUG_TO_MBTA[BOSS_STATION[lineId]] ?? stations[stations.length - 1].stationId,
     bossName: FINAL_BOSSES[lineId],
     stations,
   };

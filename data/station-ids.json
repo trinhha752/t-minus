@@ -26,5 +26,21 @@
   "chinatown": "place-chncl",
   "backbay": "place-bbsta",
   "ruggles": "place-rugg",
-  "foresthills": "place-forhl"
+  "foresthills": "place-forhl",
+  "blandford": "place-bland",
+  "bueast": "place-buest",
+  "bucentral": "place-bucen",
+  "amory": "place-amory",
+  "babcock": "place-babck",
+  "packards": "place-brico",
+  "harvardave": "place-harvd",
+  "stmarys": "place-smary",
+  "hawes": "place-hwsst",
+  "kent": "place-kntst",
+  "stpaul": "place-stpul",
+  "coolidge": "place-cool",
+  "fenway": "place-fenwy",
+  "prudential": "place-prmnl",
+  "northeastern": "place-nuniv",
+  "mfa": "place-mfa"
 }

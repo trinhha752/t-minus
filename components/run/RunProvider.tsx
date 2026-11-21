@@ -20,7 +20,8 @@ type Run = {
   /** Which delay boss the current fight uses. */
   bossIndex: number
   startGame: () => void
-  finishGame: (r: GameResult) => void
+  /** Records a finished game: gold, streak, and the station's fact card. */
+  finishGame: (r: GameResult, stationId?: string) => void
   startBoss: () => void
   /** HP for the current End-of-Line Boss fight (lower in demo mode). */
   endBossHp: number
@@ -40,11 +41,11 @@ export function RunProvider({ children }: { children: ReactNode }) {
 
   const startGame = () => setRunId((n) => n + 1)
 
-  const finishGame = (r: GameResult) => {
+  const finishGame = (r: GameResult, stationId = CURRENT_STATION) => {
     setResult(r)
     setGold((g) => g + r.points)
     setStreak(8) // first play today extends the streak
-    setPlayed((p) => new Set(p).add(CURRENT_STATION))
+    setPlayed((p) => new Set(p).add(stationId))
   }
 
   const startBoss = () => {

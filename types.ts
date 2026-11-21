@@ -1,161 +1,224 @@
-// Shared contract between frontend and backend.
-// Every /api/* route returns ApiResult<T> for one of the response types below.
-// Change a shape here first, tell the team, then update the route and the UI.
+// types.ts
+// The contract between frontend and backend. Everyone codes against this file.
+// Change a shape HERE and nowhere else, then tell the team in chat.
 
-export type Line = "Red" | "Green" | "Orange" | "Blue";
+/* ---------- lines ---------- */
 
-/** Times always travel as ISO 8601 strings, e.g. "2026-11-21T15:04:05Z". */
-export type IsoTime = string;
+// The MBTA's own route ids. Green has four branches.
+export type RouteId =
+  | "Red"
+  | "Orange"
+  | "Blue"
+  | "Green-B"
+  | "Green-C"
+  | "Green-D"
+  | "Green-E";
 
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string };
+// What a player picks as their team, and what a boss spawns on.
+// All four Green branches collapse into one "Green".
+export type TeamLine = "Red" | "Orange" | "Blue" | "Green";
 
-// ---------------------------------------------------------------------------
-// GET /api/trains?line=Red | all            (Transit)
-// ---------------------------------------------------------------------------
-export interface Train {
+export const ALL_ROUTES: RouteId[] = [
+  "Red",
+  "Orange",
+  "Blue",
+  "Green-B",
+  "Green-C",
+  "Green-D",
+  "Green-E",
+];
+
+export const ALL_TEAMS: TeamLine[] = ["Red", "Orange", "Blue", "Green"];
+
+export function routeToTeam(route: RouteId): TeamLine {
+  return route.startsWith("Green") ? "Green" : (route as TeamLine);
+}
+
+/* ---------- envelope ---------- */
+// Every route returns one of these. No exceptions, so the frontend
+// has exactly one error path.
+
+export type ApiOk<T> = { ok: true; data: T };
+export type ApiErr = { ok: false; error: string };
+export type ApiResponse<T> = ApiOk<T> | ApiErr;
+
+export const ok = <T,>(data: T): ApiOk<T> => ({ ok: true, data });
+export const err = (error: string): ApiErr => ({ ok: false, error });
+
+/* ---------- transit ---------- */
+
+export interface Station {
+  /** MBTA stop id, e.g. "place-pktrm". The primary key everywhere. */
   id: string;
-  line: Line;
+  name: string;
+  routes: RouteId[];
   lat: number;
   lon: number;
-  status: string; // MBTA current_status, e.g. "IN_TRANSIT_TO"
 }
-export type TrainsResponse = Train[];
 
-// ---------------------------------------------------------------------------
-// GET /api/predictions?stop=place-pktrm      (Transit)
-// ---------------------------------------------------------------------------
 export interface Arrival {
-  route: string; // e.g. "Red", "Green-B"
-  direction: string; // e.g. "Alewife"
+  /** MBTA prediction id. */
+  id: string;
+  stopId: string;
+  route: RouteId;
+  /** 0 or 1. The MBTA defines which end each means per route. */
+  directionId: 0 | 1;
+  /** Where the train is headed, for display. May be null. */
+  headsign: string | null;
+  /** ISO string. arrival_time, falling back to departure_time. */
+  time: string;
+  /** Seconds from now. Negative means it already went. */
   secondsAway: number;
+  /** MBTA status text, e.g. "On time". Often null on subway. */
+  status: string | null;
 }
-export type PredictionsResponse = Arrival[]; // next 3 arrivals
 
-// ---------------------------------------------------------------------------
-// GET /api/boss                               (Transit)
-// ---------------------------------------------------------------------------
+export interface Vehicle {
+  id: string;
+  route: RouteId;
+  lat: number;
+  lon: number;
+  bearing: number | null;
+  /** INCOMING_AT | STOPPED_AT | IN_TRANSIT_TO */
+  currentStatus: string | null;
+  stopId: string | null;
+}
+
+/* ---------- boss ---------- */
+
 export interface BossState {
-  line: Line;
+  line: TeamLine;
   active: boolean;
-  bossEventId: string | null;
+  /** Mean seconds behind schedule across that line's sampled stops. */
+  avgDelaySeconds: number;
+  /** How many stops are currently over the threshold. */
+  laggingStops: number;
   hpTotal: number;
   hpRemaining: number;
-  averageDelaySeconds: number;
-  since: IsoTime | null;
+  /** ISO string, null when no boss is up. */
+  startedAt: string | null;
+  defeated: boolean;
 }
-export type BossResponse = BossState[]; // one entry per line
 
-// ---------------------------------------------------------------------------
-// GET /api/trivia?stop=place-pktrm&wait=240   (Characters)
-// ---------------------------------------------------------------------------
-/** Sent to the browser. Never includes the answer index. */
-export interface TriviaQuestion {
+/* ---------- player ---------- */
+
+export interface Badge {
+  type: "station" | "line" | "streak" | "boss";
+  label: string;
+  earnedAt: string;
+}
+
+export interface Me {
   id: string;
-  stationId: string;
-  question: string;
-  options: string[];
-  verified: boolean;
-}
-export interface TriviaRound {
-  stationId: string;
-  waitSeconds: number;
-  /** Set when this round damages an active Delay Boss. */
-  bossEventId: string | null;
-  questions: TriviaQuestion[]; // 1, 3 or 5
-}
-export type TriviaResponse = TriviaRound;
-
-// ---------------------------------------------------------------------------
-// POST /api/trivia/answer                     (Backend)
-// ---------------------------------------------------------------------------
-export interface TriviaAnswerRequest {
-  questionId: string;
-  choiceIndex: number;
-}
-export interface TriviaAnswerResult {
-  correct: boolean;
-  pointsEarned: number;
-  bossDamage: number;
-  bossHpRemaining: number | null; // null when no boss is active
+  name: string;
+  team: TeamLine;
+  level: number;
+  points: number;
+  streak: number;
+  co2SavedKg: number;
+  stampedStationIds: string[];
+  badges: Badge[];
 }
 
-// ---------------------------------------------------------------------------
-// POST /api/checkin                           (Backend)
-// ---------------------------------------------------------------------------
+/* ---------- check in ---------- */
+
 export interface CheckinRequest {
   stationId: string;
   lat: number;
   lon: number;
-}
-export interface Badge {
-  type: string; // e.g. "line-complete", "boss-defeated"
-  label: string;
-  earnedAt: IsoTime;
-}
-export interface CheckinResult {
-  accepted: boolean;
-  reason: string | null; // why it was rejected, e.g. "too far"
-  pointsEarned: number;
-  newBadge: Badge | null;
+  /** Demo escape hatch. Skips the distance test. Keep it off in prod. */
+  teleport?: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// POST /api/guess  and  GET /api/guess/[id]   (Backend)
-// ---------------------------------------------------------------------------
+export interface CheckinResult {
+  accepted: boolean;
+  /** Why it was rejected, for the toast. */
+  reason?: "too_far" | "already_today" | "unknown_station";
+  metresAway?: number;
+  pointsEarned: number;
+  newBadges: Badge[];
+}
+
+/* ---------- arrival guess ---------- */
+
 export interface GuessRequest {
   stationId: string;
   guessMinutes: number;
 }
-export interface GuessCreated {
-  guessId: string;
-  targetArrivalAt: IsoTime;
-}
-export interface GuessStatus {
-  guessId: string;
+
+export interface Guess {
+  id: string;
+  stationId: string;
+  guessMinutes: number;
+  /** The prediction we are scoring against. */
+  targetArrivalIso: string;
   resolved: boolean;
   actualMinutes: number | null;
   pointsEarned: number | null;
 }
 
-// ---------------------------------------------------------------------------
-// GET /api/me                                 (Backend)
-// ---------------------------------------------------------------------------
-export interface Me {
-  name: string;
-  teamLine: Line;
-  level: number;
-  points: number;
-  streak: number;
-  co2SavedKg: number;
-  badges: Badge[];
+/* ---------- trivia ---------- */
+
+/** What the browser is allowed to see. Note: no answer index. */
+export interface TriviaQuestion {
+  id: string;
+  stationId: string;
+  question: string;
+  options: string[];
+  /** false means a human has not checked this fact yet. Do not ship these. */
+  verified: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// GET /api/leaderboard?scope=line | user      (Backend)
-// ---------------------------------------------------------------------------
-export type LeaderboardScope = "line" | "user";
-export interface LeaderboardEntry {
+export interface TriviaRound {
+  roundId: string;
+  stationId: string;
+  questions: TriviaQuestion[];
+  /** True when a boss is up on this station's line: answers do damage. */
+  bossActive: boolean;
+}
+
+export interface TriviaAnswerRequest {
+  roundId: string;
+  questionId: string;
+  choiceIndex: number;
+}
+
+export interface TriviaAnswerResult {
+  correct: boolean;
+  /** Only revealed after answering. */
+  correctIndex: number;
+  explanation: string | null;
+  pointsEarned: number;
+  /** 0 when no boss is up. */
+  bossDamage: number;
+  bossHpRemaining: number | null;
+}
+
+/* ---------- leaderboard ---------- */
+
+export interface LeaderboardRow {
   rank: number;
-  name: string; // line name when scope=line, rider name when scope=user
+  name: string;
   points: number;
-  line: Line;
+  team: TeamLine;
 }
-export type LeaderboardResponse = LeaderboardEntry[];
 
-// ---------------------------------------------------------------------------
-// POST /api/chat                              (Characters)
-// ---------------------------------------------------------------------------
+export interface Leaderboard {
+  scope: "line" | "user";
+  rows: LeaderboardRow[];
+  /** Points per team line, for the map. */
+  teamTotals: Record<TeamLine, number>;
+}
+
+/* ---------- characters ---------- */
+
 export interface ChatRequest {
   stationId: string;
   message: string;
 }
-export interface Quest {
-  id: string;
-  stationId: string;
-  title: string;
-  description: string;
-}
+
 export interface ChatReply {
-  reply: string;
-  questGranted: Quest | null;
+  characterName: string;
+  text: string;
+  questGranted: string | null;
 }

@@ -1,4 +1,4 @@
-// Owner: Characters. MOCK — call the Mastra station agent (mastra/).
+// MOCK — call the Mastra station agent (mastra/).
 import type { ChatReply, ChatRequest } from "@/types";
 import { fail, ok, readJson } from "@/lib/respond";
 
@@ -9,7 +9,8 @@ export async function POST(request: Request) {
   }
 
   const reply: ChatReply = {
-    reply: `(placeholder) The keeper of ${body.stationId} hears you: "${body.message}"`,
+    characterName: "The Crossroads Keeper",
+    text: `(placeholder) The keeper of ${body.stationId} hears you: "${body.message}"`,
     questGranted: null,
   };
   return ok(reply);

@@ -1,15 +1,15 @@
-import type { ApiResult } from "@/types";
+// Response helpers for route handlers. Every /api/* route returns
+// { ok: true, data } or { ok: false, error } — the envelope from types.ts.
+import { err, ok as okBody } from "../types";
 
 /** Success response: { ok: true, data }. */
 export function ok<T>(data: T): Response {
-  const body: ApiResult<T> = { ok: true, data };
-  return Response.json(body);
+  return Response.json(okBody(data));
 }
 
 /** Error response: { ok: false, error }. */
 export function fail(error: string, status = 400): Response {
-  const body: ApiResult<never> = { ok: false, error };
-  return Response.json(body, { status });
+  return Response.json(err(error), { status });
 }
 
 /** Parses a JSON request body; returns null if it is missing or malformed. */

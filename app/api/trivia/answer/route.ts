@@ -1,21 +1,102 @@
-// Owner: Backend. MOCK — check the answer server-side against trivia_questions,
-// and apply boss damage in one transaction.
-import type { TriviaAnswerRequest, TriviaAnswerResult } from "@/types";
-import { fail, ok, readJson } from "@/lib/respond";
-import { POINTS } from "@/lib/scoring";
+// POST /api/trivia/answer  { roundId, questionId, choiceIndex }
+//
+// The answer is checked here, on the server. Boss damage is applied in a
+// locked transaction so simultaneous answers cannot overdraw the bar.
 
-export async function POST(request: Request) {
-  const body = await readJson<TriviaAnswerRequest>(request);
-  if (!body || typeof body.questionId !== "string" || typeof body.choiceIndex !== "number") {
-    return fail("expected { questionId, choiceIndex }");
+import type { NextRequest } from "next/server";
+import { fail, ok } from "@/lib/respond";
+import { q, one } from "@/lib/db";
+import { currentUserId } from "@/lib/session";
+import { damageBoss } from "@/lib/boss";
+import { POINTS } from "@/lib/scoring";
+import type {
+  RouteId,
+  TeamLine,
+  TriviaAnswerRequest,
+  TriviaAnswerResult,
+} from "@/types";
+import { routeToTeam } from "@/types";
+
+export async function POST(req: NextRequest) {
+  let body: TriviaAnswerRequest;
+  try {
+    body = (await req.json()) as TriviaAnswerRequest;
+  } catch {
+    return fail("bad json", 400);
   }
 
-  const correct = body.choiceIndex === 0; // mock: option A is always right
+  const userId = await currentUserId();
+
+  const question = await one<{
+    id: string;
+    station_id: string;
+    answer_index: number;
+    explanation: string | null;
+  }>(
+    `SELECT id, station_id, answer_index, explanation
+       FROM trivia_questions WHERE id = $1 AND verified`,
+    [body.questionId]
+  );
+  if (!question) return fail("unknown question", 404);
+
+  const correct = body.choiceIndex === question.answer_index;
+
+  // Which line is this station on, and is its boss up?
+  const station = await one<{ routes: string[] }>(
+    `SELECT routes FROM stations WHERE id = $1`,
+    [question.station_id]
+  );
+  const lines = [...new Set(((station?.routes ?? []) as RouteId[]).map(routeToTeam))];
+
+  const liveBoss = await one<{ id: number; line: TeamLine }>(
+    `SELECT id, line FROM boss_events
+      WHERE ended_at IS NULL AND line = ANY($1::text[])
+      LIMIT 1`,
+    [lines]
+  );
+
+  await q(
+    `INSERT INTO trivia_answers (user_id, question_id, correct, boss_event_id)
+     VALUES ($1, $2, $3, $4)`,
+    [userId, question.id, correct, liveBoss?.id ?? null]
+  );
+
+  let pointsEarned = 0;
+  let bossDamage = 0;
+  let bossHpRemaining: number | null = null;
+
+  if (correct) {
+    if (liveBoss) {
+      // During a boss the answer feeds the shared bar instead of your score.
+      const hit = await damageBoss(liveBoss.line, userId);
+      bossDamage = hit.damage;
+      bossHpRemaining = hit.hpRemaining;
+
+      if (hit.defeated) {
+        await q(
+          `UPDATE users SET points = points + $2
+            WHERE id IN (
+              SELECT DISTINCT user_id FROM trivia_answers WHERE boss_event_id = $1
+            )`,
+          [liveBoss.id, POINTS.bossDefeatedBonus]
+        );
+      }
+    } else {
+      pointsEarned = POINTS.triviaCorrect;
+      await q(`UPDATE users SET points = points + $2 WHERE id = $1`, [
+        userId,
+        pointsEarned,
+      ]);
+    }
+  }
+
   const result: TriviaAnswerResult = {
     correct,
-    pointsEarned: correct ? POINTS.triviaCorrect : 0,
-    bossDamage: 0,
-    bossHpRemaining: null,
+    correctIndex: question.answer_index,
+    explanation: question.explanation,
+    pointsEarned,
+    bossDamage,
+    bossHpRemaining,
   };
   return ok(result);
 }

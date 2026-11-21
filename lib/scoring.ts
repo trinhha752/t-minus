@@ -1,39 +1,74 @@
-// Owner: Backend. Starting values from the spec — tune once, early.
+// lib/scoring.ts
+// Every number the game balances on, in one file. Tune these ONCE, early.
+// Nobody should be editing point values at 3am.
 
 export const POINTS = {
-  checkin: 10, // once per station per day
+  checkin: 10,
   triviaCorrect: 15,
   cleanRoundBonus: 5,
   guessExact: 50,
   guessPenaltyPerMinute: 10,
-  bossDefeated: 100, // to every rider on the line
+  bossDefeatedBonus: 100,
 } as const;
 
-export const BOSS = {
-  damagePerCorrect: 10,
-  hpPerRider: 50,
-  minHp: 50,
-  delayThresholdSeconds: 5 * 60, // 5+ minutes behind schedule...
-  minDelayedStations: 3, // ...at 3+ stations on the line
-} as const;
+/** Damage one correct answer does to a boss, instead of solo points. */
+export const BOSS_DAMAGE_PER_CORRECT = 10;
 
-/** Trivia questions per round: <3 min -> 1, 3-8 min -> 3, 8+ min or boss -> 5. */
-export function roundSize(waitSeconds: number, bossActive: boolean): number {
-  if (bossActive || waitSeconds >= 8 * 60) return 5;
-  if (waitSeconds >= 3 * 60) return 3;
-  return 1;
+/** HP = this times the riders currently checked in on the line. */
+export const BOSS_HP_PER_RIDER = 50;
+export const BOSS_HP_MIN = 50; // so one person can still win in a demo
+
+/** A line is "behind" at this many seconds late... */
+export const BOSS_DELAY_THRESHOLD_SECONDS = 300;
+/** ...at this many stops at once. */
+export const BOSS_MIN_LAGGING_STOPS = 3;
+
+/**
+ * Rough kg of CO2 saved versus driving the same trip.
+ *
+ * APPROXIMATE. Pick one figure, show it as an estimate in the UI, and cite
+ * wherever you got it. Do not present this as measured.
+ */
+export const CO2_KG_SAVED_PER_RIDE = 0.9;
+
+/** How many questions a wait of this length is worth. */
+export function roundSize(secondsUntilTrain: number, bossActive: boolean): number {
+  if (bossActive) return 5;
+  if (secondsUntilTrain < 180) return 1;
+  if (secondsUntilTrain < 480) return 3;
+  return 5;
 }
 
-/** Arrival guess: 50 for exact, minus 10 per minute off, never below 0. */
-export function guessPoints(guessMinutes: number, actualMinutes: number): number {
+/** Closer guess, more points. Never negative. */
+export function scoreGuess(guessMinutes: number, actualMinutes: number): number {
   const off = Math.abs(guessMinutes - actualMinutes);
-  return Math.max(0, POINTS.guessExact - POINTS.guessPenaltyPerMinute * off);
+  return Math.max(0, Math.round(POINTS.guessExact - off * POINTS.guessPenaltyPerMinute));
 }
 
-/** Boss HP scales with riders checked in on the line, so one rider can win. */
-export function bossHp(ridersOnLine: number): number {
-  return Math.max(BOSS.minHp, BOSS.hpPerRider * ridersOnLine);
+export function bossHpFor(ridersOnLine: number): number {
+  return Math.max(BOSS_HP_MIN, ridersOnLine * BOSS_HP_PER_RIDER);
 }
 
-// TODO: pick one cited CO2 factor (kg saved per ride vs driving), label it an estimate.
-export const CO2_KG_PER_RIDE = 0; // placeholder until a sourced figure is chosen
+/** Level curve. Deliberately gentle: a first-time rider should see level 2. */
+export function levelFor(points: number): number {
+  return Math.max(1, Math.floor(Math.sqrt(points / 50)) + 1);
+}
+
+/**
+ * Streak rule: riding today continues it, skipping a whole day breaks it.
+ * Pass the dates as YYYY-MM-DD in Boston local time.
+ */
+export function nextStreak(
+  currentStreak: number,
+  lastRideDate: string | null,
+  todayDate: string
+): number {
+  if (!lastRideDate) return 1;
+  if (lastRideDate === todayDate) return currentStreak;
+
+  const dayBefore = new Date(`${todayDate}T00:00:00Z`);
+  dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
+  const yesterday = dayBefore.toISOString().slice(0, 10);
+
+  return lastRideDate === yesterday ? currentStreak + 1 : 1;
+}

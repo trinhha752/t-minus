@@ -9,10 +9,13 @@ import type { BrakeResult } from "@/game/brake";
 export default function BrakeGame({
   stationName,
   lineColor,
+  stops = 3,
   onFinish,
 }: {
   stationName: string;
   lineColor: string;
+  /** 1 = just arriving at this station; 3 = the full practice run. */
+  stops?: number;
   onFinish: (r: BrakeResult) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -29,6 +32,7 @@ export default function BrakeGame({
       game = createBrakeGame(host.current, {
         stationName,
         lineColor,
+        stops,
         onFinish: (r) => finish.current(r),
       });
     });
@@ -36,7 +40,7 @@ export default function BrakeGame({
       cancelled = true;
       game?.destroy(true);
     };
-  }, [stationName, lineColor]);
+  }, [stationName, lineColor, stops]);
 
   // touch-action none: holding to brake must not scroll or zoom the page.
   return <div ref={host} className="h-full w-full select-none" style={{ touchAction: "none" }} />;

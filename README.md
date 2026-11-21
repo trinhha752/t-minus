@@ -42,7 +42,7 @@ npm run dev                  # http://localhost:3000
 
 Before rebuilding anything, prove the overworld works: a `/play` page with a pixel T map in Phaser, your car moving along the Red Line with the arrow keys, and real trains from `/api/trains`.
 
-**Built: open <http://localhost:3000/play>.** Pick your line and the station you're at, see your real next train, and play **Stop at the platform** (`game/brake.ts`): hold anywhere to brake, release to coast, and stop the front of the train on the STOP line. There are 3 stops, each faster. Within 0.5 m is PERFECT (1000); you lose 90 per metre off, and running off the platform scores 0. A run of 1200/3000 clears the station and posts to `/api/minigame/result`. There's also a Photo Quest button. Play it, then decide:
+**Built: open <http://localhost:3000/play>.** It runs one station the way it will run inside the game: pick where you are (your real next trains show one per direction, in minutes, then "Arriving", then "Boarding", like the platform sign), tap **Arrive**, **brake your train into the station** once (hold anywhere, stop on the STOP line), and the **photo quest** starts on its own. Passing the photo quest stamps the station, and the braking score is a bonus. Results post to `/api/minigame/result`. Play it, then decide:
 
 - **Works and feels fun by 8:00 pm:** commit to the game. Port mini-games into Phaser levels one at a time; the current screens become the menus around it.
 - **Fighting us:** drop it. Keep the current screens and polish their game feel. We lose 2 hours, not the weekend.

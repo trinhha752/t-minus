@@ -26,6 +26,8 @@ export interface BrakeResult {
 
 export interface BrakeOptions {
   stationName: string;
+  /** How many stops to play: 1 = just arriving at this station, 3 = the full practice run. */
+  stops?: number;
   /** Hex like "#DA291C". */
   lineColor: string;
   onFinish: (r: BrakeResult) => void;
@@ -45,7 +47,7 @@ const BRAKE = 380; // px/s^2 while held
 const COAST = 15; // px/s^2 rolling resistance
 const OVERRUN_M = 4; // past the marker this far = ran off the platform
 const PLATFORM_BEFORE_M = 30;
-const CLEAR_SCORE = 1200; // of 3000
+const CLEAR_PER_STOP = 400; // clear = average 400 per stop (1200 of 3000)
 const CAR_W = 144;
 const CAR_H = 40;
 const TRACK_Y = 420;
@@ -124,6 +126,7 @@ class BrakeScene extends Phaser.Scene {
   private round = 0;
   private results: BrakeRound[] = [];
   private startedAt = 0;
+  private rounds = ROUNDS;
 
   private train!: Phaser.GameObjects.Container;
   private v = 0;
@@ -144,6 +147,7 @@ class BrakeScene extends Phaser.Scene {
   }
 
   create() {
+    this.rounds = ROUNDS.slice(0, Math.max(1, Math.min(ROUNDS.length, this.opts.stops ?? ROUNDS.length)));
     this.makeTextures();
     this.startedAt = this.time.now;
 
@@ -274,13 +278,17 @@ class BrakeScene extends Phaser.Scene {
   }
 
   private startRound() {
-    const r = ROUNDS[this.round];
+    const r = this.rounds[this.round];
     this.markerX = START_X + CAR_W + r.distance;
     this.buildStation();
     this.train.x = START_X;
     this.v = r.speed;
     this.moving = true;
-    this.hudRound.setText(`STOP ${this.round + 1}/${ROUNDS.length} · ${this.opts.stationName.toUpperCase()}`);
+    this.hudRound.setText(
+      this.rounds.length === 1
+        ? `ARRIVING · ${this.opts.stationName.toUpperCase()}`
+        : `STOP ${this.round + 1}/${this.rounds.length} · ${this.opts.stationName.toUpperCase()}`
+    );
     this.hint.setVisible(true);
   }
 
@@ -363,7 +371,7 @@ class BrakeScene extends Phaser.Scene {
       banner.destroy();
       sub.destroy();
       this.round++;
-      if (this.round < ROUNDS.length) this.startRound();
+      if (this.round < this.rounds.length) this.startRound();
       else this.finish();
     });
   }
@@ -372,7 +380,7 @@ class BrakeScene extends Phaser.Scene {
     const score = this.results.reduce((s, r) => s + r.score, 0);
     this.opts.onFinish({
       score,
-      cleared: score >= CLEAR_SCORE,
+      cleared: score >= CLEAR_PER_STOP * this.rounds.length,
       durationMs: Math.round(this.time.now - this.startedAt),
       rounds: this.results,
     });

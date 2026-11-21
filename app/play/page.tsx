@@ -1,35 +1,46 @@
 "use client";
-// /play — the 2-hour test. Pick your station, see your real next train, and
-// play "stop at the platform" while you wait. A cleared run counts as that
-// station's level (POST /api/minigame/result).
+// /play — the station flow, end to end, as it will run inside the game:
+//
+//   PLAY → brake into the station (1 stop) → photo quest → results
+//
+// The station is cleared when the photo quest passes; the braking score is a
+// bonus. Results post to /api/minigame/result. Your real next trains show at
+// the top, one per direction, the way platform signs show them.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import BrakeGame from "@/components/game/BrakeGame";
 import PhotoQuest from "@/components/PhotoQuest";
 import { ROUTES, STATIONS, LINES, type LineId } from "@/components/run/stations";
 import type { BrakeResult } from "@/game/brake";
 import type { Arrival, TeamLine } from "@/types";
 
-type Screen = "pick" | "brake" | "results" | "photo";
+type Screen = "pick" | "brake" | "photo" | "results";
 const TEAM: Record<LineId, TeamLine> = { red: "Red", green: "Green" };
+
+/** How T platform signs show a train: minutes, then Arriving, then Boarding. */
+function signText(secs: number): string {
+  if (secs <= 0) return "Boarding";
+  if (secs <= 60) return "Arriving";
+  return `${Math.round(secs / 60)} min`;
+}
 
 export default function PlayPage() {
   const [lineId, setLineId] = useState<LineId>("red");
   const [slug, setSlug] = useState("harvard");
   const [screen, setScreen] = useState<Screen>("pick");
-  const [result, setResult] = useState<BrakeResult | null>(null);
-  const [saved, setSaved] = useState<string>("");
+  const [brake, setBrake] = useState<BrakeResult | null>(null);
+  const [photo, setPhoto] = useState<{ passed: boolean; dataUrl: string | null } | null>(null);
+  const [saved, setSaved] = useState("");
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [fetchedAt, setFetchedAt] = useState(0);
   const [now, setNow] = useState(0);
-  const [photo, setPhoto] = useState<string | null>(null);
+  const startedAt = useRef(0);
 
   const station = STATIONS.find((s) => s.id === slug)!;
   const line = LINES[lineId];
 
-  // Your real wait: next trains at this station, refreshed every 15s.
   const loadArrivals = useCallback(async () => {
-    const r = await fetch(`/api/predictions?stop=${slug}`).then((x) => x.json()).catch(() => null);
+    const r = await fetch(`/api/predictions?stop=${slug}&limit=8`).then((x) => x.json()).catch(() => null);
     if (r?.ok) {
       setArrivals(r.data);
       setFetchedAt(Date.now());
@@ -53,18 +64,33 @@ export default function PlayPage() {
     };
   }, []);
 
-  const next = arrivals.find((a) => a.secondsAway - (now - fetchedAt) / 1000 > 0);
-  const secs = next ? Math.max(0, Math.round(next.secondsAway - (now - fetchedAt) / 1000)) : null;
+  // One row per direction: the soonest train that hasn't left yet.
+  const elapsed = fetchedAt && now ? (now - fetchedAt) / 1000 : 0;
+  const byDirection = [0, 1]
+    .map((dir) => arrivals.find((a) => a.directionId === dir && a.secondsAway - elapsed > -90))
+    .filter((a): a is Arrival => !!a);
 
-  const onFinish = useCallback(
-    async (r: BrakeResult) => {
-      setResult(r);
+  const start = () => {
+    startedAt.current = Date.now();
+    setBrake(null);
+    setPhoto(null);
+    setSaved("");
+    setScreen("brake");
+  };
+
+  const save = useCallback(
+    async (b: BrakeResult, p: { passed: boolean; dataUrl: string | null }) => {
       setScreen("results");
       setSaved("saving…");
       const res = await fetch("/api/minigame/result", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ stationId: slug, score: r.score, cleared: r.cleared, durationMs: r.durationMs }),
+        body: JSON.stringify({
+          stationId: slug,
+          score: b.score,
+          cleared: p.passed,
+          durationMs: Math.max(3000, Date.now() - startedAt.current),
+        }),
       })
         .then((x) => x.json())
         .catch(() => null);
@@ -72,19 +98,27 @@ export default function PlayPage() {
         !res?.ok
           ? `not saved (${res?.error ?? "offline"})`
           : res.data.pointsEarned
-            ? `+${res.data.pointsEarned} points${res.data.chapterBossUnlocked ? " · END BOSS UNLOCKED" : ""}`
-            : r.cleared
-              ? "practice run (already cleared today)"
-              : "not cleared: no points"
+            ? `${station.name} stamped! +${res.data.pointsEarned} points${res.data.chapterBossUnlocked ? " · END BOSS UNLOCKED" : ""}`
+            : p.passed
+              ? "Already stamped today: practice run"
+              : "Not stamped: finish the photo quest"
       );
     },
-    [slug]
+    [slug, station.name]
   );
 
   if (screen === "brake") {
     return (
       <main className="fixed inset-0 bg-[#0b0b12]">
-        <BrakeGame stationName={station.name} lineColor={line.color} onFinish={onFinish} />
+        <BrakeGame
+          stationName={station.name}
+          lineColor={line.color}
+          stops={1}
+          onFinish={(r) => {
+            setBrake(r);
+            setScreen("photo");
+          }}
+        />
         <button onClick={() => setScreen("pick")} className="absolute right-3 top-24 rounded bg-black/60 px-3 py-1 font-mono text-xs text-white">
           QUIT
         </button>
@@ -98,9 +132,9 @@ export default function PlayPage() {
         stationName={station.name}
         line={TEAM[lineId]}
         onClose={() => setScreen("pick")}
-        onComplete={({ dataUrl }) => {
-          if (dataUrl) setPhoto(dataUrl);
-          setScreen("pick");
+        onComplete={(p) => {
+          setPhoto(p);
+          if (brake) void save(brake, p);
         }}
       />
     );
@@ -109,8 +143,8 @@ export default function PlayPage() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-5 bg-[#0b0b12] p-4 font-mono text-white">
       <header>
-        <p className="text-xs tracking-widest opacity-60">T-MINUS · PLAY TEST</p>
-        <h1 className="text-2xl font-black">Stop at the platform</h1>
+        <p className="text-xs tracking-widest opacity-60">T-MINUS · STATION TEST</p>
+        <h1 className="text-2xl font-black">Arrive and explore</h1>
       </header>
 
       <div className="flex gap-2">
@@ -140,58 +174,52 @@ export default function PlayPage() {
         </select>
       </label>
 
-      {/* The real wait is the game's clock. */}
+      {/* Like the platform sign: one row per direction. */}
       <section className="border-4 p-3" style={{ borderColor: line.color }}>
-        <p className="text-xs opacity-60">YOUR NEXT TRAIN · LIVE</p>
-        {next && secs !== null ? (
-          <>
-            <p className="text-4xl font-black tabular-nums">
-              {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")}
-            </p>
-            <p className="text-sm opacity-80">
-              {next.route} → {next.headsign ?? "?"} · time for about {Math.max(1, Math.floor(secs / 40))} runs
-            </p>
-          </>
+        <p className="mb-2 text-xs opacity-60">NEXT TRAINS · LIVE FROM THE MBTA</p>
+        {byDirection.length ? (
+          byDirection.map((a) => {
+            const secs = Math.round(a.secondsAway - elapsed);
+            return (
+              <div key={a.id} className="flex items-baseline justify-between py-1">
+                <span className="text-base">{a.headsign ?? a.route}</span>
+                <span className="text-2xl font-black tabular-nums">{signText(secs)}</span>
+              </div>
+            );
+          })
         ) : (
-          <p className="text-lg">No train predicted right now</p>
+          <p className="text-lg">No trains predicted right now</p>
         )}
       </section>
 
-      {screen === "results" && result && (
+      {screen === "results" && brake && photo && (
         <section className="flex flex-col gap-2 border-4 border-[#f2c200] p-3">
-          <p className="text-xs opacity-60">LAST RUN</p>
-          <p className="text-3xl font-black">
-            {result.score} <span className="text-base">/ 3000 {result.cleared ? "· CLEARED" : "· TRY AGAIN"}</span>
+          <p className="text-xs opacity-60">{station.name.toUpperCase()}</p>
+          <p className="text-sm">
+            🚇 Arrival: <b>{brake.rounds[0]?.label}</b>{" "}
+            {brake.rounds[0]?.errorM == null ? "" : `(${Math.abs(brake.rounds[0].errorM).toFixed(1)} m ${brake.rounds[0].errorM >= 0 ? "past" : "short"})`} +{brake.score}
           </p>
-          <ul className="text-sm">
-            {result.rounds.map((r, i) => (
-              <li key={i}>
-                Stop {i + 1}: {r.label} {r.errorM === null ? "" : `(${Math.abs(r.errorM).toFixed(1)} m ${r.errorM >= 0 ? "past" : "short"})`} +{r.score}
-              </li>
-            ))}
-          </ul>
+          <p className="text-sm">📸 Photo quest: <b>{photo.passed ? "CLEARED" : "not done"}</b></p>
           <p className="text-sm text-[#f2c200]">{saved}</p>
+          {photo.dataUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- camera data: URL
+            <img src={photo.dataUrl} alt={`Your ${station.name} card`} className="mt-1 h-40 w-32 self-center border-4 border-white object-cover" />
+          )}
         </section>
       )}
 
       <button
-        onClick={() => setScreen("brake")}
+        onClick={start}
         className="border-4 border-black py-4 text-xl font-black text-black active:translate-y-1"
         style={{ background: "#f2c200", boxShadow: "0 6px 0 #8a6d00" }}
       >
-        {screen === "results" ? "PLAY AGAIN" : "PLAY"}
+        {screen === "results" ? "PLAY AGAIN" : `ARRIVE AT ${station.name.toUpperCase()}`}
       </button>
-      <button
-        onClick={() => setScreen("photo")}
-        className="border-4 border-white/30 py-3 text-base font-bold active:translate-y-1"
-      >
-        PHOTO QUEST
-      </button>
-      {photo && (
-        // eslint-disable-next-line @next/next/no-img-element -- camera data: URL
-        <img src={photo} alt={`Your photo stamp at ${station.name}`} className="h-40 w-32 self-center border-4 border-white object-cover" />
-      )}
-      <p className="text-xs opacity-50">Hold anywhere to brake, or press space. Stop the front of the train on the STOP line.</p>
+      <ol className="list-decimal pl-5 text-xs opacity-60">
+        <li>Bring your train in: hold anywhere to brake, stop on the STOP line.</li>
+        <li>Photo quest: find what it asks for on the platform and snap it.</li>
+        <li>Your photo becomes this station&apos;s card, and the station gets stamped.</li>
+      </ol>
     </main>
   );
 }

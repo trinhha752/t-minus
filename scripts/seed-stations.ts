@@ -80,7 +80,7 @@ async function main() {
 
   const personas = JSON.parse(fs.readFileSync(personaFile, "utf8")) as Persona[];
   let applied = 0;
-  let missing: string[] = [];
+  const missing: string[] = [];
 
   for (const p of personas) {
     const res = await pool.query(

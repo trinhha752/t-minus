@@ -158,7 +158,9 @@ export function predictionsRequest(stopId: string): MbtaRequest {
  *    page limit can return nothing but cancellations. A station only has
  *    ~50 predictions, so we fetch them all and trim here instead.
  *  - we score the guess game against arrival_time when it exists, because
- *    that is the moment a rider actually sees the train.
+ *    that is the moment a rider actually sees the train. A train still at the
+ *    platform (arrived, not yet departed) stays in the list with a negative
+ *    secondsAway; once it has departed it is dropped.
  */
 export async function getPredictions(stopId: string, limit = 5): Promise<Arrival[]> {
   const doc = await mbtaGet(predictionsRequest(stopId));
@@ -185,6 +187,9 @@ export async function getPredictions(stopId: string, limit = 5): Promise<Arrival
       const route = relId(r, "route");
       if (!isRoute(route)) return null; // bus, ferry, commuter rail: not our game
 
+      // Gone once it has left: departure_time when there is one, else arrival.
+      if (Date.parse(departure ?? time) < now) return null;
+
       const tripId = relId(r, "trip");
 
       return {
@@ -198,7 +203,7 @@ export async function getPredictions(stopId: string, limit = 5): Promise<Arrival
         status: str(r.attributes.status),
       };
     })
-    .filter((a): a is Arrival => a !== null && a.secondsAway > -60)
+    .filter((a): a is Arrival => a !== null)
     .sort((a, b) => a.secondsAway - b.secondsAway)
     .slice(0, limit);
 }

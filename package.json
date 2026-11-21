@@ -15,7 +15,9 @@
     "smoke:mbta": "tsx --env-file=.env.local scripts/smoke-mbta.ts",
     "boss:fake": "tsx --env-file=.env.local scripts/fake-boss.ts",
     "boss:kill": "tsx --env-file=.env.local scripts/kill-boss.ts",
-    "seed:fallback": "tsx --env-file=.env.local scripts/save-fallback.ts"
+    "seed:fallback": "tsx --env-file=.env.local scripts/save-fallback.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "test:api": "tsx scripts/test-api.ts"
   },
   "dependencies": {
     "next": "16.4.6",

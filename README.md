@@ -89,6 +89,12 @@ curl -c jar.txt -b jar.txt -X POST localhost:3000/api/final-boss/hit -H 'content
 
 Still mock (shapes are final, data is not): `/api/me`, `/api/leaderboard`, `/api/guess`, `/api/guess/[id]`, `/api/chat`.
 
+### Testing the backend
+
+- **See it working:** open <http://localhost:3000/dev>. It's a plain console that shows the live delay bosses, a countdown to the next trains, and buttons to clear stations and fight a final boss. It's not the game UI.
+- `npm test`: unit tests for the boss detector, scoring, and check-in distance. No database or network needed.
+- `npm run test:api`: with `npm run dev` running, plays one fresh rider through every live route and prints PASS or FAIL for each check. Set `BASE=https://...` to test a deployed server.
+
 ### Backend scripts
 
 | Command | Does |

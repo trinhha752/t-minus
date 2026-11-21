@@ -1,0 +1,7 @@
+[
+  { "mbtaStopId": "place-pktrm", "name": "Park Street", "lines": ["Red", "Green"], "characterName": "The Crossroads Keeper" },
+  { "mbtaStopId": "place-bucen", "name": "BU Central", "lines": ["Green"], "characterName": "The Scholar" },
+  { "mbtaStopId": "place-harsq", "name": "Harvard", "lines": ["Red"], "characterName": "The Archivist" },
+  { "mbtaStopId": "place-aqucl", "name": "Aquarium", "lines": ["Blue"], "characterName": "The Tidewatcher" },
+  { "mbtaStopId": "place-chncl", "name": "Chinatown", "lines": ["Orange"], "characterName": "The Night Cook" }
+]

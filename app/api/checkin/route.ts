@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { fail, ok } from "@/lib/respond";
 import { q, one } from "@/lib/db";
 import { currentUserId } from "@/lib/session";
+import { toMbtaId } from "@/lib/chapters";
 import { withinCheckinRange } from "@/lib/geo";
 import { POINTS, CO2_KG_SAVED_PER_RIDE, nextStreak } from "@/lib/scoring";
 import type { Badge, CheckinRequest, CheckinResult, RouteId } from "@/types";
@@ -26,6 +27,9 @@ export async function POST(req: NextRequest) {
   } catch {
     return fail("bad json", 400);
   }
+
+  // Accept the UI slug ("harvard") as well as the MBTA id.
+  body.stationId = toMbtaId(String(body.stationId ?? "")) ?? body.stationId;
 
   const userId = await currentUserId();
 

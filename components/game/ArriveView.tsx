@@ -199,9 +199,15 @@ export function ArriveView({ id }: { id: string }) {
                 🚇 {round.label}
                 {round.errorM == null ? "" : ` · ${Math.abs(round.errorM).toFixed(1)} m ${round.errorM >= 0 ? "past" : "short"}`} · +{round.score}
               </p>
-              <p className="mt-2 border-l-4 pl-3 font-pixel text-[17px] leading-snug" style={{ borderColor: line.color }}>
-                {quest.prompt}
+              {quest.hook && (
+                <p className="mt-2 font-pixel text-[14px] leading-snug text-muted">
+                  <span className="font-bold text-ink">Did you know?</span> {quest.hook}
+                </p>
+              )}
+              <p className="mt-2 border-l-4 pl-3 font-pixel text-[17px] font-bold leading-snug" style={{ borderColor: line.color }}>
+                📸 {quest.prompt}
               </p>
+              <p className="pl-4 font-pixel text-[12px] text-muted">Anywhere in this station counts: no need to leave.</p>
             </>
           )}
 

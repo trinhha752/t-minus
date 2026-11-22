@@ -8,10 +8,12 @@ import type { TeamLine } from "../types";
 
 export interface PhotoQuest {
   id: string;
-  /** Shown to the player. */
+  /** The task, shown to the player. Always doable anywhere in a T station. */
   prompt: string;
   /** What Gemini checks for. */
   target: string;
+  /** A fact about the station, for flavor only (never an instruction). */
+  hook?: string;
 }
 
 const QUESTS = questsJson as PhotoQuest[];
@@ -34,18 +36,17 @@ export function randomQuest(line: TeamLine = "Red"): PhotoQuest {
 
 export const QUEST_IDS = QUESTS.map((q) => q.id);
 
-const STATION_QUESTS = stationQuestsJson as unknown as Record<string, { questId: string; prompt: string }>;
+const STATION_QUESTS = stationQuestsJson as unknown as Record<string, { questId: string; hook: string }>;
 
 /**
- * This station's quest: its own themed text, checked against a generic target
- * so it's always doable. Falls back to a random quest for unknown stations.
+ * This station's quest: a fact about the place (hook), plus a simple task any
+ * T station can satisfy. Falls back to a random quest for unknown stations.
  */
 export function stationQuest(slug: string, line: TeamLine = "Red"): PhotoQuest {
   const sq = STATION_QUESTS[slug];
   const base = sq && questFor(sq.questId, line);
   if (!sq || !base) return randomQuest(line);
-  const color = questFor("line-color", line)!.target.replace(/^an object or surface that is mostly /, "");
-  return { ...base, prompt: sq.prompt.replaceAll("{color}", color) };
+  return { ...base, hook: sq.hook };
 }
 
 export const STATION_QUEST_SLUGS = Object.keys(STATION_QUESTS).filter((k) => !k.startsWith("_"));

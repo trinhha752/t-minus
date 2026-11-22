@@ -1,223 +1,223 @@
 {
-  "_note": "Per-station photo quest: themed text for the player, generic quest id for Gemini (data/photo-quests.json), so it can be done at any platform. Keyed by UI slug (components/run/stations.ts).",
+  "_note": "Per-station photo quest. `hook` is a fact about the place (flavor only, never an instruction). The task the player does comes from `questId` in data/photo-quests.json, and is always something any T station has. Keyed by UI slug (components/run/stations.ts).",
   "alewife": {
     "questId": "arrow",
-    "prompt": "The alewife herring are lost on their way upstream! Find an arrow to point them home."
+    "hook": "Alewife is named for a small herring that still swims up the Mystic River every spring."
   },
   "davis": {
     "questId": "map",
-    "prompt": "Davis Square was a busy rail crossing long before the music. Find a map and trace the crossing."
+    "hook": "Davis Square was a busy rail crossing long before it was a music hub."
   },
   "porter": {
     "questId": "seat",
-    "prompt": "Travelers once rested at the old Porter House hotel. Find a seat and rest yours."
+    "hook": "The porterhouse steak may take its name from a hotel that once stood here."
   },
   "harvard": {
     "questId": "sign",
-    "prompt": "The statue in Harvard Yard tells three lies. Find a sign with writing on it. Is it telling the truth?"
+    "hook": "The statue in Harvard Yard is known as the \"statue of three lies.\""
   },
   "central": {
     "questId": "door",
-    "prompt": "City Hall was a gift to Cambridge in 1889. Every gift needs a way in: find a door or a gate."
+    "hook": "Cambridge City Hall, steps away, was a philanthropist's gift in 1889."
   },
   "kendall": {
     "questId": "metal",
-    "prompt": "MIT crossed the river in 1916 and built in steel. Find something made of metal."
+    "hook": "MIT moved across the river from Boston to Cambridge in 1916."
   },
   "charles": {
     "questId": "light",
-    "prompt": "Surgeons first used ether here in 1846, under a dome full of light. Find a light."
+    "hook": "In 1846, surgeons nearby first demonstrated ether anesthesia in public."
   },
   "park": {
     "questId": "stairs",
-    "prompt": "America's first subway tunnel opened here in 1897. Find the stairs that lead down into it."
+    "hook": "Park Street opened in 1897 as part of America's first subway tunnel."
   },
   "downtown": {
     "questId": "line-color",
-    "prompt": "Washington Street once ran along the Neck, the only road into Boston. Find something {color} like the line that runs under it now."
+    "hook": "Washington Street once ran along the Neck, the only road into Boston."
   },
   "south": {
     "questId": "number",
-    "prompt": "In 1899 South Station was one of the busiest on Earth. Find a number: a track, a time, anything from the timetable."
+    "hook": "When it opened in 1899, South Station was among the busiest stations on Earth."
   },
   "lechmere": {
     "questId": "door",
-    "prompt": "Richard Lechmere's land was seized in the Revolution. Find a door or gate he'd have been locked out of."
+    "hook": "Lechmere is named for Richard Lechmere, a Loyalist whose land was seized in the Revolution."
   },
   "science": {
     "questId": "metal",
-    "prompt": "The Museum of Science sits on top of the old Charles River Dam. Find something metal holding something up."
+    "hook": "The Museum of Science sits on top of the old Charles River Dam."
   },
   "north": {
     "questId": "line-color",
-    "prompt": "A wave of molasses swept these streets in 1919. Quick, find something {color} before it gets sticky!"
+    "hook": "In 1919, a wave of molasses swept through nearby streets at about 35 mph."
   },
   "haymarket": {
     "questId": "seat",
-    "prompt": "Haymarket's stalls have sold produce for nearly two centuries. Find a seat where a merchant could set up shop."
+    "hook": "Haymarket's open-air produce stalls have run here for nearly two centuries."
   },
   "gov": {
     "questId": "sign",
-    "prompt": "Scollay Square vanished under City Hall Plaza. Find a sign with writing: a clue to what used to be here."
+    "hook": "Scollay Square, once Boston's rowdiest district, was razed for City Hall Plaza."
   },
   "boylston": {
     "questId": "light",
-    "prompt": "Boylston opened in 1897, one of the oldest subway stops in the Americas. Find a light in its old tunnels."
+    "hook": "Boylston opened in 1897 and is one of the oldest subway stops in the Americas."
   },
   "arlington": {
     "questId": "stairs",
-    "prompt": "The Swan Boats are pedaled by foot in the Public Garden upstairs. Find the stairs or escalator up to them."
+    "hook": "The Public Garden's Swan Boats have been pedaled by foot since 1877."
   },
   "copley": {
     "questId": "map",
-    "prompt": "Trinity Church stands on 4,500 wooden pilings just above you. Find a map of what's up there."
+    "hook": "Trinity Church rests on about 4,500 wooden pilings driven into filled marsh."
   },
   "hynes": {
     "questId": "number",
-    "prompt": "Mayor John B. Hynes ran Boston through the 1950s. Find a number he could have signed off on."
+    "hook": "Hynes is named for John B. Hynes, the mayor who led Boston through the 1950s."
   },
   "kenmore": {
     "questId": "line-color",
-    "prompt": "The neon sign over Kenmore Square has glowed since 1965. Find something {color} that would look good in neon."
+    "hook": "The glowing sign over Kenmore Square has lit the skyline since 1965."
   },
   "sullivan": {
     "questId": "sign",
-    "prompt": "Sullivan Square is named for Governor James Sullivan. Find a sign with a name on it."
+    "hook": "Sullivan Square is named for James Sullivan, governor of Massachusetts in 1807 and 1808."
   },
   "ccollege": {
     "questId": "stairs",
-    "prompt": "The Battle of Bunker Hill was fought uphill in 1775. Find stairs and take the high ground."
+    "hook": "The 1775 Battle of Bunker Hill was fought nearby, mostly on Breed's Hill."
   },
   "state": {
     "questId": "sign",
-    "prompt": "In 1776 the Declaration was read from the balcony right above you. Find a sign with writing and read it out loud!"
+    "hook": "In 1776 the Declaration of Independence was read from the Old State House balcony above this station."
   },
   "chinatown": {
     "questId": "door",
-    "prompt": "Chinatown's gate welcomes everyone. Find a door or a gate of your own."
+    "hook": "Chinatown's ornate gate, a gift from Taiwan, was dedicated in 1982."
   },
   "backbay": {
     "questId": "line-color",
-    "prompt": "Back Bay was a tidal flat until the 1800s. Find something {color} on solid ground."
+    "hook": "Back Bay really was a bay: its tidal flats were filled in during the 1800s."
   },
   "ruggles": {
     "questId": "metal",
-    "prompt": "The old elevated tracks came down in 1987. Find something metal that's still standing."
+    "hook": "In 1987 the Orange Line moved here, replacing the old elevated tracks above Washington Street."
   },
   "foresthills": {
     "questId": "light",
-    "prompt": "The Arnold Arboretum next door grows in the sunlight. Find a light down here instead."
+    "hook": "The Arnold Arboretum, founded by Harvard in 1872, is right next door."
   },
   "blandford": {
     "questId": "sign",
-    "prompt": "The B line climbs out of its tunnel here. Find a sign that tells you where you are."
+    "hook": "Here the B branch comes up out of the tunnel and onto Commonwealth Avenue."
   },
   "bueast": {
     "questId": "metal",
-    "prompt": "Comm Ave here was once Boston's Automobile Row. Find something metal that could have come off an old car."
+    "hook": "From the 1910s, Comm Ave here was Boston's Automobile Row, lined with car dealers."
   },
   "bucentral": {
     "questId": "line-color",
-    "prompt": "Whatever you do, don't step on the BU seal. Find something {color} to step on instead."
+    "hook": "BU legend says if you step on the university seal, you won't graduate in four years."
   },
   "amory": {
     "questId": "seat",
-    "prompt": "The B branch is so slow that runners have outraced it. Find a seat while you wait."
+    "hook": "The B branch is the slowest Green Line branch, with stops only a block or two apart."
   },
   "babcock": {
     "questId": "light",
-    "prompt": "In 1920 a 26-inning game nearby ended only when it got too dark. Find a light to keep playing."
+    "hook": "In 1920 the Braves and Brooklyn played 26 innings nearby before darkness ended it in a tie."
   },
   "packards": {
     "questId": "arrow",
-    "prompt": "Comm Ave bends toward Allston and Brighton here. Find an arrow pointing the way."
+    "hook": "Packard's Corner is where Comm Ave bends toward Allston and Brighton."
   },
   "harvardave": {
     "questId": "seat",
-    "prompt": "Every September 1, Allston's sidewalks fill with left-behind furniture. Find a seat nobody's moving."
+    "hook": "Every September 1, Allston's sidewalks fill with furniture on the city's biggest moving day."
   },
   "stmarys": {
     "questId": "light",
-    "prompt": "In 1889 the first electric streetcars ran along Beacon Street. Find a light that runs on electricity."
+    "hook": "In 1889 the first electric streetcar route ran along Beacon Street."
   },
   "hawes": {
     "questId": "door",
-    "prompt": "Hawes Street is the quiet stop on the C branch. Sneak up and find a door or a gate."
+    "hook": "Hawes Street is one of the quietest stops on the C branch."
   },
   "kent": {
     "questId": "stairs",
-    "prompt": "Kent Street sits in the middle of Beacon Street. Find stairs, steps or a curb to get off the street."
+    "hook": "Kent Street is a small stop in the middle of Beacon Street."
   },
   "stpaul": {
     "questId": "number",
-    "prompt": "There used to be two St. Paul Street stops. Find a number and count to two."
+    "hook": "Until 2021 the Green Line had two St. Paul Street stops, one on the B and one on the C."
   },
   "coolidge": {
     "questId": "sign",
-    "prompt": "Coolidge Corner is named for an 1857 general store, not the president. Find a store sign."
+    "hook": "Coolidge Corner is named for an 1857 general store, not the president."
   },
   "fenway": {
     "questId": "line-color",
-    "prompt": "One seat at Fenway Park is painted red for Ted Williams's 502-foot homer. Find something {color} of your own."
+    "hook": "In 1946 Ted Williams hit a 502-foot home run to the seat now painted red."
   },
   "prudential": {
     "questId": "light",
-    "prompt": "The Prudential Tower rises 749 feet over old railroad yards. Find a light to light the tower."
+    "hook": "The Prudential Tower (1964) rises 749 feet over old railroad yards."
   },
   "northeastern": {
     "questId": "number",
-    "prompt": "The first modern World Series was played here in 1903. Find a number for the scoreboard."
+    "hook": "The first modern World Series was played here in 1903, at the Huntington Avenue Grounds."
   },
   "mfa": {
     "questId": "door",
-    "prompt": "Nothing in the Gardner Museum nearby is ever allowed to move. Find a door that stays exactly where it is."
+    "hook": "The Gardner Museum nearby must stay exactly as Isabella Stewart Gardner arranged it."
   },
   "broadway": {
     "questId": "line-color",
-    "prompt": "South Boston's parade has marched since 1901. Find something {color} to march with."
+    "hook": "South Boston's St. Patrick's Day parade dates back to 1901."
   },
   "andrew": {
     "questId": "sign",
-    "prompt": "Governor Andrew raised the 54th Massachusetts. Find a sign with writing, like a recruiting poster."
+    "hook": "Andrew Square is named for John Andrew, the Civil War governor who raised the 54th Massachusetts."
   },
   "jfk": {
     "questId": "light",
-    "prompt": "JFK sent America to the Moon. Find a light bright enough to launch by."
+    "hook": "The John F. Kennedy Presidential Library opened nearby on Columbia Point in 1979."
   },
   "savin": {
     "questId": "stairs",
-    "prompt": "Savin Hill was covered in red cedars. Find stairs and climb the hill."
+    "hook": "Savin Hill is named for the savin, a red cedar that once grew on its slopes."
   },
   "fields": {
     "questId": "seat",
-    "prompt": "Fields Corner is Boston's Little Saigon. Find a seat for a bowl of pho."
+    "hook": "Fields Corner is the heart of Boston's Vietnamese community."
   },
   "shawmut": {
     "questId": "map",
-    "prompt": "Shawmut was the old name for Boston's peninsula. Find a map and find the old shoreline."
+    "hook": "Shawmut was the Native name for the peninsula that became Boston."
   },
   "ashmont": {
     "questId": "metal",
-    "prompt": "The Mattapan trolleys here were built in the 1940s. Find something metal that's still running."
+    "hook": "From Ashmont, the Mattapan trolley still runs streetcars built in the 1940s."
   },
   "nquincy": {
     "questId": "arrow",
-    "prompt": "The Red Line pushed into Quincy in 1971. Find an arrow pointing the way south."
+    "hook": "The Red Line reached Quincy in 1971, when North Quincy opened."
   },
   "wollaston": {
     "questId": "number",
-    "prompt": "Captain Wollaston landed here in 1625. Find a number, like a year on a sign."
+    "hook": "Wollaston is named for Captain Richard Wollaston, who settled here in 1625."
   },
   "quincy": {
     "questId": "door",
-    "prompt": "Two presidents rest in the church across the street. Find a door worthy of a president."
+    "hook": "Presidents John Adams and John Quincy Adams are buried in the church across the street."
   },
   "qadams": {
     "questId": "sign",
-    "prompt": "Two presidents were born a few miles from here. Find a sign with a name on it."
+    "hook": "The birthplaces of two presidents, John Adams and John Quincy Adams, still stand in Quincy."
   },
   "braintree": {
     "questId": "line-color",
-    "prompt": "You made it to the end of the Red Line! Find something {color} to celebrate."
+    "hook": "Braintree became the end of the Red Line in 1980."
   }
 }

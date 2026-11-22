@@ -1,12 +1,12 @@
 [
-  { "id": "line-color", "prompt": "Find something {color}: the color of the {line} Line.", "target": "an object or surface that is mostly {color}" },
-  { "id": "sign", "prompt": "Photograph a sign with writing on it.", "target": "a sign with visible writing or letters" },
-  { "id": "map", "prompt": "Find a map or a diagram.", "target": "a map, route map, or diagram" },
-  { "id": "metal", "prompt": "Find something made of metal.", "target": "something made of metal" },
-  { "id": "seat", "prompt": "Find somewhere to sit.", "target": "a bench, seat, or chair" },
-  { "id": "stairs", "prompt": "Photograph some stairs or an escalator.", "target": "stairs, steps, or an escalator" },
-  { "id": "light", "prompt": "Find a light.", "target": "a light, lamp, or light fixture" },
-  { "id": "door", "prompt": "Find a door or a gate.", "target": "a door, gate, or turnstile" },
-  { "id": "arrow", "prompt": "Find an arrow pointing somewhere.", "target": "an arrow, on a sign or the floor or anywhere" },
-  { "id": "number", "prompt": "Find a number written anywhere.", "target": "a visible written or printed number" }
+  {"id": "line-color", "prompt": "Snap something {color}, like the {line} Line's signs or trim.", "target": "an object or surface that is mostly {color}"},
+  {"id": "sign", "prompt": "Snap any sign with writing on it.", "target": "a sign with visible writing or letters"},
+  {"id": "map", "prompt": "Snap a map: the T map on the wall counts.", "target": "a map, route map, or diagram"},
+  {"id": "metal", "prompt": "Snap something made of metal: a railing, a pole, a bench.", "target": "something made of metal"},
+  {"id": "seat", "prompt": "Snap a bench or a seat.", "target": "a bench, seat, or chair"},
+  {"id": "stairs", "prompt": "Snap stairs or an escalator.", "target": "stairs, steps, or an escalator"},
+  {"id": "light", "prompt": "Snap a light: any lamp or light fixture.", "target": "a light, lamp, or light fixture"},
+  {"id": "door", "prompt": "Snap a door, a gate, or the fare gates.", "target": "a door, gate, or turnstile"},
+  {"id": "arrow", "prompt": "Snap an arrow: on a sign, the floor, anywhere.", "target": "an arrow, on a sign or the floor or anywhere"},
+  {"id": "number", "prompt": "Snap a number: a platform sign, a clock, anything.", "target": "a visible written or printed number"}
 ]

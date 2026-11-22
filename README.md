@@ -38,6 +38,24 @@ npm run dev                  # http://localhost:3000
 
 **Look:** pixel art (Phaser for gameplay, React for menus and screens between levels). Use free CC0 packs from [Kenney.nl](https://kenney.nl/assets) rather than drawing everything. Game feel is a requirement: hit-stop, screen shake, flashing HP bars, sounds.
 
+### How the game loop works
+
+```
+Map: "YOU ARE HERE · BU Central"  (your phone's real location)
+  └─ Check in ─▶ Arrive: brake your train in ─▶ photo quest ─▶ STAMPED (+25, saved on the server)
+                   └─▶ Play the station's game (Landmark Match, or Harvard's own) ─▶ results
+  └─ back on the map, the card says "BU Central stamped ✓ · ride to Amory Street"
+  └─ ride there (or "Try the game here (demo)") ─▶ Arrive ─▶ ... ─▶ next stamp
+  └─ every station on a line stamped ─▶ card says "line complete! · End Boss" ─▶ Fight
+  └─ a real delay on your line ─▶ Delay Boss (everyone on the line fights it together)
+```
+
+- **Progress is saved on the server.** Stamped stations, gold (points) and streak come from `/api/progress` and `/api/me`, so a refresh keeps them. The line chips at the top count real stamps.
+- **"Next" is the next unstamped station on your line** (`components/game/loop.ts`), wrapping around to ones you skipped.
+- **Start over:** tap **↺ New rider (demo)** on the map (dev, or `NEXT_PUBLIC_DEMO_MODE=1`). It gives you a fresh rider with nothing stamped.
+- Playing a station again the same day is allowed but earns nothing ("Already stamped today").
+- Still local only: gold from the boss fights (`addGold`), until the bosses are wired to the server.
+
 ### The 2-hour test (decide by 8:00 pm Saturday)
 
 Before rebuilding anything, prove the overworld works: a `/play` page with a pixel T map in Phaser, your car moving along the Red Line with the arrow keys, and real trains from `/api/trains`.

@@ -16,6 +16,7 @@ export function ResultsScreen({
   onPlayAgain,
   onNext,
   onMap,
+  nextId,
 }: {
   result: GameResult
   streak: number
@@ -24,9 +25,11 @@ export function ResultsScreen({
   onPlayAgain: () => void
   onNext: () => void
   onMap: () => void
+  /** Where to ride next; defaults to the demo's next station. */
+  nextId?: string | null
 }) {
   const perfect = result.correctCount === result.rounds
-  const next = stationById(NEXT_STATION)
+  const next = stationById(nextId === undefined ? NEXT_STATION : (nextId ?? NEXT_STATION))
   const [photo, setPhoto] = useState(0)
 
   // Slowly cycle through Harvard photos on the fact card.

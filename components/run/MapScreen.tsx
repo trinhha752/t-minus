@@ -50,6 +50,8 @@ export function MapScreen({
   chrome = true,
   currentId = CURRENT_STATION,
   hereNote,
+  nextId,
+  onBoss,
 }: {
   played: Set<string>
   streak: number
@@ -61,10 +63,15 @@ export function MapScreen({
   currentId?: string
   /** Replaces "You're at · realm" when the player isn't at a station, e.g. "Nearest · 0.9 km". */
   hereNote?: string
+  /** Where to ride next after this station is stamped; null when the whole line is stamped. */
+  nextId?: string | null
+  /** The line is complete: open its End Boss. */
+  onBoss?: () => void
 }) {
   const current = stationById(currentId)
   const currentLine = current.lines[0]
-  const next = stationById(NEXT_STATION)
+  const nextStationId = nextId === undefined ? NEXT_STATION : nextId
+  const next = nextStationId ? stationById(nextStationId) : null
   const currentPlayed = played.has(currentId)
   const progress = (line: LineId) => {
     const ids = ROUTES[line]
@@ -148,19 +155,26 @@ export function MapScreen({
           <div className={`absolute inset-x-4 bottom-[96px] z-20 flex items-center gap-3 p-2.5 pl-3 ${PANEL}`}>
             {currentPlayed ? (
               <>
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-ink bg-[#FDECEA] text-line-red-dark">
+                <span
+                  className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-ink"
+                  style={{ backgroundColor: LINES[currentLine].tint, color: LINES[currentLine].dark }}
+                >
                   <TrainFront size={24} strokeWidth={2.3} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-pixel text-[13px] text-muted">Next stop · ~3 min</p>
-                  <p className="font-pixel text-[22px] font-bold leading-tight">{next.name}</p>
+                  <p className="truncate font-pixel text-[13px] text-muted">
+                    {current.name} stamped ✓ · {next ? 'ride to' : 'line complete!'}
+                  </p>
+                  <p className="truncate font-pixel text-[22px] font-bold leading-tight">
+                    {next ? next.name : 'End Boss'}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => onSelect(NEXT_STATION)}
+                  onClick={() => (next ? onSelect(next.id) : onBoss?.())}
                   className="flex h-12 items-center gap-1 border-[3px] border-ink bg-[#F1E7CF] pl-3.5 pr-2.5 font-pixel text-[16px] font-bold text-ink shadow-[3px_3px_0_#1B1F24] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                 >
-                  Preview
+                  {next ? 'Preview' : 'Fight'}
                   <ChevronRight size={18} strokeWidth={2.6} />
                 </button>
               </>

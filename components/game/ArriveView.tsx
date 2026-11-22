@@ -40,7 +40,7 @@ const post = (url: string, body: unknown) =>
 
 export function ArriveView({ id }: { id: string }) {
   const router = useRouter();
-  const { played, streak, gold, startGame } = useRun();
+  const { played, streak, gold, startGame, refresh } = useRun();
   const here = useMyStation();
   const station = stationById(id);
   const lineId = station.lines[0];
@@ -114,6 +114,7 @@ export function ArriveView({ id }: { id: string }) {
             ? "Already stamped today"
             : "Not stamped"
     );
+    await refresh(); // the map and chips pick up the new stamp
   };
 
   const playGame = () => {

@@ -18,14 +18,15 @@ import { GameFrame } from './GameFrame'
 import { MapScreen } from './MapScreen'
 import { ResultsScreen } from './ResultsScreen'
 import { useRun } from './RunProvider'
-import { CURRENT_STATION, NEXT_STATION, stationById, type Station } from './stations'
+import { CURRENT_STATION, stationById, type Station } from './stations'
 import { MATCH_GAME, MatchGame } from './MatchGame'
 
 /** Stations with their own hand-made game; every other station plays Landmark Match for now. */
 const HAS_OWN_GAME = new Set(['harvard'])
 const withGame = (s: Station): Station => (HAS_OWN_GAME.has(s.id) ? s : { ...s, game: MATCH_GAME })
 import { BottomNav, HomeIndicator, StatusBar, type Tab } from './ui'
-import { useMyStation } from '@/components/game/useMyStation'
+import { DEMO_MODE, useMyStation } from '@/components/game/useMyStation'
+import { nextStation } from '@/components/game/loop'
 
 // Collection and Profile screens aren't ported yet; both go to the /profile stub.
 const TAB_HREF: Record<Tab, string> = { map: '/', collection: '/profile', profile: '/profile' }
@@ -46,7 +47,7 @@ function useHere() {
 
 function MapLayer() {
   const router = useRouter()
-  const { played, streak, gold } = useRun()
+  const { played, streak, gold, startEndBoss, newRider } = useRun()
   const here = useHere()
   return (
     <>
@@ -56,8 +57,22 @@ function MapLayer() {
         gold={gold}
         currentId={here.id}
         hereNote={here.note}
+        nextId={nextStation(here.id, played)}
+        onBoss={() => {
+          startEndBoss(false)
+          router.push('/final-boss')
+        }}
         onSelect={(id) => router.push(`/station/${id}`)}
       />
+      {DEMO_MODE && (
+        <button
+          type="button"
+          onClick={() => void newRider()}
+          className="absolute left-4 top-[238px] z-20 border-2 border-ink bg-[#FBF3DF] px-2 py-1 font-pixel text-[12px] font-bold shadow-[2px_2px_0_#1B1F24] active:translate-x-px active:translate-y-px active:shadow-none"
+        >
+          ↺ New rider (demo)
+        </button>
+      )}
       <StatusBar />
       <BottomNav tab="map" onChange={(t) => router.push(TAB_HREF[t])} />
     </>
@@ -211,6 +226,7 @@ export function PlayView({ id }: { id: string }) {
 export function ResultsView({ id }: { id: string }) {
   const router = useRouter()
   const { result, streak, gold, played, startGame } = useRun()
+  const next = nextStation(id, played)
 
   // No result in memory (e.g. a refresh): send them back to the station.
   useEffect(() => {
@@ -229,7 +245,8 @@ export function ResultsView({ id }: { id: string }) {
           startGame()
           router.push(`/station/${id}/play`)
         }}
-        onNext={() => router.push(`/station/${NEXT_STATION}`)}
+        nextId={next}
+        onNext={() => router.push(next ? `/station/${next}` : '/')}
         onMap={() => router.push('/')}
       />
       <HomeIndicator />

@@ -234,7 +234,11 @@ Still mock (the shape is final, the data is not): `/api/chat`.
 - `npm test`: unit tests for the boss detector, scoring, and check-in distance. No database or network needed.
 - `npm run test:api`: with `npm run dev` running, plays one fresh rider through every live route and prints PASS or FAIL for each check. Set `BASE=https://...` to test a deployed server.
 
-### Deploy (Vultr, HTTPS)
+### Deploy (team): GoDaddy domain + Vercel
+
+**In progress, owned by the team. Full handoff with steps, env vars and the pass condition: [`docs/HANDOFF-deploy-vercel.md`](docs/HANDOFF-deploy-vercel.md).** The poller keeps running on one laptop; Vercel serves the site over HTTPS so phones get the camera and GPS.
+
+### Deploy (Vultr, HTTPS) (not used for now)
 
 Phones only allow the camera and GPS over HTTPS, so the photo quest and location check-in need the deployed site.
 1. Create an Ubuntu 24.04 server on Vultr (2 GB RAM or more) with your SSH key. Point your domain's A record at its IP, or skip the domain and use `<ip-with-dashes>.sslip.io`.

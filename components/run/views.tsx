@@ -22,7 +22,7 @@ import { END_BOSS } from './stats'
 import { MapScreen } from './MapScreen'
 import { ResultsScreen } from './ResultsScreen'
 import { useRun } from './RunProvider'
-import { CURRENT_STATION, stationById, type Station } from './stations'
+import { CURRENT_STATION, STATIONS, stationById, type Station } from './stations'
 import { MATCH_GAME, MatchGame } from './MatchGame'
 import { TRUTH_GAME, TruthGame } from './TruthGame'
 import { TRUTH_ROUNDS } from './truths'
@@ -94,7 +94,9 @@ function DemoControls({ here, onNewRider }: { here: string; onNewRider: () => vo
 /** The station the player is really at (phone location), or the demo station until located. */
 function useHere() {
   const here = useMyStation()
-  const demo = useDemoStation()
+  const saved = useDemoStation()
+  // Ignore a demo station that no longer exists (an old saved id would crash every screen)
+  const demo = saved && STATIONS.some((s) => s.id === saved) ? saved : null
   if (demo) return { id: demo, note: undefined, located: true, settled: true }
   const id = here.slug ?? CURRENT_STATION
   const note =
@@ -368,14 +370,16 @@ function useLiveDelayBoss(stationId: string, ready: boolean) {
   return { live, status }
 }
 
-const DELAY_FIGHTS: ('trivia' | DelayGameKind)[] = ['trivia', 'signal', 'dodge']
+// The trivia fight (DelayBoss, the shared server boss) is out of the rotation for now: a delay is
+// Signal Repair or Platform Dodge, 50/50. Put 'trivia' back in this list to bring it back.
+const DELAY_FIGHTS: ('trivia' | DelayGameKind)[] = ['signal', 'dodge']
 
 export function BossView() {
   const router = useRouter()
   const { runId, bossIndex, gold, played, streak, refresh, addGold } = useRun()
   const here = useHere()
-  // Each delay is one of three fights, so they don't all play the same
-  const kind = DELAY_FIGHTS[(runId + bossIndex) % DELAY_FIGHTS.length]
+  // Each delay is a coin flip between the fights (picked once per run, so it doesn't change mid-fight)
+  const kind = DELAY_FIGHTS[(runId * 7 + bossIndex * 3 + 1) % DELAY_FIGHTS.length]
   // Only the trivia fight uses the shared server boss (and starts a simulated one in demo mode)
   const { live, status } = useLiveDelayBoss(here.id, here.settled && kind === 'trivia')
   if (kind !== 'trivia') {

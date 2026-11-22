@@ -17,7 +17,7 @@ import type { GameResult } from './GameFrame'
 import { NUM, PANEL, PixelScreen } from './pixel'
 import { StatusBar } from './ui'
 
-export const SLIDE_GAME = { title: 'Slide Sneak', genre: 'Stealth', time: '~30 sec' }
+export const SLIDE_GAME = { title: 'Slide Sneak', genre: 'Stealth', time: '~45 sec' }
 
 // ---------- Board ----------
 
@@ -28,14 +28,14 @@ const BW = COLS * T
 const BH = ROWS * T
 
 /** Seconds before the plaza closes. */
-const TIME = 30
+const TIME = 45
 /** How fast a guard's suspicion fills while you're in view (per second); 1 = caught. */
-const SPOT_RATE = 2.4
-const CALM_RATE = 1.2
+const SPOT_RATE = 1
+const CALM_RATE = 1.6
 /** Sneaking pace: at most one step this often. */
-const STEP_MS = 170
+const STEP_MS = 130
 /** How many tiles ahead a guard can see. */
-const SIGHT = 4
+const SIGHT = 3
 
 /**
  * The plaza. # City Hall, H the grassy mound the slide sits on, G the slide's ladder (the goal),
@@ -84,10 +84,10 @@ type GuardDef =
   | { kind: 'patrol'; axis: 'x' | 'y'; line: number; from: number; to: number; speed: number; start: number; dir: 1 | -1 }
   | { kind: 'sentry'; x: number; y: number; looks: Dir[]; every: number }
 const GUARDS: GuardDef[] = [
-  { kind: 'patrol', axis: 'x', line: 9, from: 0, to: 8, speed: 1.5, start: 1, dir: 1 },
-  { kind: 'patrol', axis: 'x', line: 5, from: 0, to: 8, speed: 1.9, start: 7, dir: -1 },
-  { kind: 'patrol', axis: 'y', line: 5, from: 3, to: 10, speed: 1.3, start: 7, dir: -1 },
-  { kind: 'sentry', x: 3, y: 3, looks: [[1, 0], [0, 1], [-1, 0], [0, 1]], every: 1.6 },
+  { kind: 'patrol', axis: 'x', line: 9, from: 0, to: 8, speed: 1.05, start: 1, dir: 1 },
+  { kind: 'patrol', axis: 'x', line: 5, from: 0, to: 8, speed: 1.3, start: 7, dir: -1 },
+  { kind: 'patrol', axis: 'y', line: 5, from: 3, to: 10, speed: 0.9, start: 7, dir: -1 },
+  { kind: 'sentry', x: 3, y: 3, looks: [[1, 0], [0, 1], [-1, 0], [0, 1]], every: 2.4 },
 ]
 /** Pause at the end of a patrol before turning around. */
 const TURN_PAUSE = 0.5
@@ -134,7 +134,10 @@ function newGame(): Game {
   return { px: START.x, py: START.y, dx: START.x, dy: START.y, guards, start: 0, nextStep: 0, shownLeft: null, spotted: 0, wasSeen: false, over: false, outcome: null, endAt: 0, catcher: null }
 }
 
-/** The tiles a guard can see: a cone four tiles deep that planters, benches and City Hall block. */
+/** The tiles a guard can see (never the safe T entrance): a cone three tiles deep that planters, benches and City Hall block. */
+/** The T entrance you start on is always safe: guards can't see or catch you there. */
+const isSafe = (x: number, y: number) => x === START.x && y === START.y
+
 function sightOf(g: Guard): [number, number][] {
   const gx = Math.round(g.x)
   const gy = Math.round(g.y)
@@ -145,7 +148,7 @@ function sightOf(g: Guard): [number, number][] {
     for (let l = -w; l <= w; l++) {
       const tx = gx + fx * d - fy * l
       const ty = gy + fy * d + fx * l
-      if (blocked(tx, ty)) continue
+      if (blocked(tx, ty) || isSafe(tx, ty)) continue
       // Line of sight: nothing solid between the guard and this tile
       let clear = true
       for (let k = 1; k < 8; k++) {
@@ -297,7 +300,7 @@ export function SlideGame({
           let seenNow = false
           for (const gd of g.guards) {
             // Bumping into a guard is an instant bust
-            if (Math.abs(gd.x - g.px) < 0.45 && Math.abs(gd.y - g.py) < 0.45) {
+            if (!isSafe(g.px, g.py) && Math.abs(gd.x - g.px) < 0.35 && Math.abs(gd.y - g.py) < 0.35) {
               endRef.current('caught', gd)
               break
             }
@@ -435,7 +438,7 @@ export function SlideGame({
               <p className="font-pixel text-[25px] font-bold leading-tight">Ride the slide!</p>
               <p className="mt-1.5 text-[13px] leading-snug text-ink-soft">
                 The City Hall Plaza slide is right there, but security says you&apos;re way too old for it. Sneak up to it without getting
-                caught. Yellow tiles are what the guards can see: hide behind planters and benches, and move when they look away.
+                caught. Yellow tiles are what the guards can see: hide behind planters and benches, and move when they look away. The T entrance is safe.
               </p>
               <button
                 type="button"
@@ -616,7 +619,12 @@ function draw(ctx: Ctx, now: number, g: Game, phase: Phase, font: string) {
       }
     }
   }
-  // The T entrance at the bottom: where you come up
+  // The T entrance at the bottom: where you come up, and a safe zone the guards ignore
+  ctx.fillStyle = 'rgba(63, 191, 106, 0.35)'
+  ctx.fillRect(START.x * T, START.y * T, T, T)
+  ctx.strokeStyle = '#3FBF6A'
+  ctx.lineWidth = 2
+  ctx.strokeRect(START.x * T + 1, START.y * T + 1, T - 2, T - 2)
   ctx.fillStyle = '#1B1F24'
   ctx.fillRect(START.x * T + 4, START.y * T + 6, T - 8, T - 10)
   ctx.fillStyle = '#5C6670'
@@ -630,6 +638,11 @@ function draw(ctx: Ctx, now: number, g: Game, phase: Phase, font: string) {
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText('T', START.x * T + T / 2, START.y * T + T / 2 + 2)
+  ctx.font = `bold 9px ${font}`
+  ctx.fillStyle = '#1B1F24'
+  ctx.fillRect(START.x * T + T / 2 - 15, START.y * T - 13, 30, 12)
+  ctx.fillStyle = '#7CF29A'
+  ctx.fillText('SAFE', START.x * T + T / 2, START.y * T - 7)
 
   // City Hall: Brutalist concrete with its rows of deep window fins
   const hw = 6 * T

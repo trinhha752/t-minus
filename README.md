@@ -151,7 +151,8 @@ import PhotoQuest from "@/components/PhotoQuest";
 
 - Tasks are in `data/photo-quests.json`: 10 generic ones that work at **any** station (a sign, a map, something metal, something the line's color...). Never station-specific.
 - It opens the back camera, shrinks the photo to 768px JPEG, and sends it to `POST /api/photo-quest/verify { questId, imageBase64, line }`, which returns `{ passed, reason }`. Gemini is told to be generous.
-- **It fails open.** With no Gemini key, an error, or a response slower than 6s, it passes. A judge's photo must never get rejected on stage. The image is never stored or logged.
+- **Models:** it tries `gemini-3.6-flash`, then `gemini-3.1-flash-lite` if that's overloaded or slow (override with `GEMINI_MODEL=a,b`). Checks take about 1.5 s. Tested: a green object and a station sign pass; a black photo and a blank wall fail.
+- **It fails open.** With no Gemini key, an error, or no answer within 6s from any model, it passes. A judge's photo must never get rejected on stage. The image is never stored or logged.
 - Fail means "try another angle" with free reshoots. No camera means a Skip button. The player is never trapped.
 - A "Demo: pass without camera" button shows in dev, or when `NEXT_PUBLIC_DEMO_MODE=1`, in case the venue blocks camera access.
 - **The camera needs HTTPS.** `localhost` works, but a phone pointed at your laptop's IP silently fails. Test on a phone with `npx next dev --experimental-https`, a tunnel, or the deployed Vultr URL.

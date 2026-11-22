@@ -25,6 +25,7 @@ import { MATCH_GAME, MatchGame } from './MatchGame'
 const HAS_OWN_GAME = new Set(['harvard'])
 const withGame = (s: Station): Station => (HAS_OWN_GAME.has(s.id) ? s : { ...s, game: MATCH_GAME })
 import { BottomNav, HomeIndicator, StatusBar, type Tab } from './ui'
+import { useMyStation } from '@/components/game/useMyStation'
 
 // Collection and Profile screens aren't ported yet; both go to the /profile stub.
 const TAB_HREF: Record<Tab, string> = { map: '/', collection: '/profile', profile: '/profile' }
@@ -32,12 +33,31 @@ const TAB_HREF: Record<Tab, string> = { map: '/', collection: '/profile', profil
 // Stations where the End-of-Line Boss can be challenged. Only the Red Line boss exists so far.
 const END_OF_LINE = new Set(['alewife'])
 
+/** The station the player is really at (phone location), or the demo station until located. */
+function useHere() {
+  const here = useMyStation()
+  const id = here.slug ?? CURRENT_STATION
+  const note =
+    here.slug && !here.inRange && here.metres != null
+      ? `Nearest station · ${(here.metres / 1000).toFixed(1)} km`
+      : undefined
+  return { id, note, located: here.status === 'ready' }
+}
+
 function MapLayer() {
   const router = useRouter()
   const { played, streak, gold } = useRun()
+  const here = useHere()
   return (
     <>
-      <MapScreen played={played} streak={streak} gold={gold} onSelect={(id) => router.push(`/station/${id}`)} />
+      <MapScreen
+        played={played}
+        streak={streak}
+        gold={gold}
+        currentId={here.id}
+        hereNote={here.note}
+        onSelect={(id) => router.push(`/station/${id}`)}
+      />
       <StatusBar />
       <BottomNav tab="map" onChange={(t) => router.push(TAB_HREF[t])} />
     </>
@@ -125,7 +145,8 @@ export function BossView() {
 
 export function StationView({ id }: { id: string }) {
   const router = useRouter()
-  const { played, startGame, startEndBoss } = useRun()
+  const { played, startEndBoss } = useRun()
+  const here = useHere()
   return (
     <>
       <MapLayer />
@@ -141,20 +162,10 @@ export function StationView({ id }: { id: string }) {
         key={id}
         station={withGame(stationById(id))}
         played={played.has(id)}
-        isCurrent={id === CURRENT_STATION}
-        onDemoPlay={
-          id === CURRENT_STATION
-            ? undefined
-            : () => {
-                startGame()
-                router.push(`/station/${id}/play`)
-              }
-        }
+        isCurrent={id === here.id}
+        onDemoPlay={id === here.id ? undefined : () => router.push(`/station/${id}/arrive`)}
         onClose={() => router.push('/')}
-        onPlay={() => {
-          startGame()
-          router.push(`/station/${id}/play`)
-        }}
+        onPlay={() => router.push(`/station/${id}/arrive`)}
         onViewCollection={() => router.push(TAB_HREF.collection)}
       />
       <HomeIndicator />

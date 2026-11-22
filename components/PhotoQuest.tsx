@@ -51,6 +51,7 @@ export default function PhotoQuest({
   line = "Red",
   questId,
   quest: givenQuest,
+  contained = false,
   onComplete,
   onClose,
 }: {
@@ -63,6 +64,8 @@ export default function PhotoQuest({
   onComplete: (result: PhotoQuestResult) => void;
   /** Optional close button. */
   onClose?: () => void;
+  /** Fill the nearest positioned parent (e.g. the game's phone frame) instead of the whole window. */
+  contained?: boolean;
 }) {
   const [quest] = useState<Quest>(() => givenQuest ?? ((questId && questFor(questId, line)) || randomQuest(line)));
   const [phase, setPhase] = useState<Phase>("starting");
@@ -169,7 +172,11 @@ export default function PhotoQuest({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black text-white" role="dialog" aria-label="Photo quest">
+    <div
+      className={`${contained ? "absolute font-pixel" : "fixed"} inset-0 z-50 flex flex-col bg-black text-white`}
+      role="dialog"
+      aria-label="Photo quest"
+    >
       <style>{`
         @keyframes pq-scan { 0% { top: 0% } 50% { top: 100% } 100% { top: 0% } }
         @keyframes pq-fly { 0% { opacity: 0; transform: translateY(20px) scale(.8) } 20% { opacity: 1; transform: translateY(0) scale(1.1) } 100% { opacity: 0; transform: translateY(-80px) scale(1) } }

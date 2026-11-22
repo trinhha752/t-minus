@@ -857,6 +857,14 @@ export function PixelMap({
     [apply],
   )
 
+  // When the player's real station arrives (location is async) or changes, glide the camera there.
+  const lastCurrent = useRef(current)
+  useEffect(() => {
+    if (lastCurrent.current === current) return
+    lastCurrent.current = current
+    animateTo(viewOn(byId.get(current)!))
+  }, [current, animateTo])
+
   // ---- Draw the city, then animate the water and the rider in retro steps.
   // (No trains yet: they'll come from live MBTA positions, not a simulation.)
   useEffect(() => {

@@ -42,15 +42,13 @@ npm run dev                  # http://localhost:3000
 
 Before rebuilding anything, prove the overworld works: a `/play` page with a pixel T map in Phaser, your car moving along the Red Line with the arrow keys, and real trains from `/api/trains`.
 
-**Built: open <http://localhost:3000/play>.** One station, the way it runs in real life:
-1. **Your phone's location picks the station.** You can only play where you're standing (within 150 m). In dev, or with `NEXT_PUBLIC_DEMO_MODE=1`, a *Demo teleport* picker lets you play anywhere.
-2. **Arrive** checks you in, then you **brake your train into the station** (hold anywhere, stop on the STOP line).
-3. **The station greets you** ("Welcome to Kendall/MIT · station 6 of 10") with **its own photo quest** ("MIT crossed the river in 1916 and built in steel. Find something made of metal.").
-4. **Reward:** the station's fact flips over on a card with your photo, the station gets stamped, and your **line collection** fills in ("1/10, 9 more to unlock The Iron Archivist. Ride somewhere new!").
+**Built, inside the game:** open <http://localhost:3000>. The pixel map finds **your real location** and centers on the station you're at ("YOU ARE HERE · BU Central"). Tap **Check in** (or a station, then **Play**) and you go through **Arrive** (`/station/[id]/arrive`, in `components/game/ArriveView.tsx`):
+1. **Check in:** live next trains, one per direction like the platform sign. You must be within 150 m; in dev, or with `NEXT_PUBLIC_DEMO_MODE=1`, stations you're not at offer **Arrive (demo)**.
+2. **Brake your train into the station** (hold anywhere, stop on the STOP line).
+3. **The station's photo quest** (themed text in `data/station-quests.json`).
+4. **Stamped:** the station's fact with your photo, saved to the server (`/api/minigame/result`). Then **Play the station** goes to the station's own game (`/station/[id]/play`).
 
-The page shows **where you are** on a live mini-map of the T (your dot plus every game station, filled once stamped), and the closest real MBTA station even when it isn't in the game ("You're near Boston University Central, Green Line B, 66 m"). Below that is **one section per line**: Red (Scholars' Realm), Green (Ancient Tunnels) and Orange (Revolution Road), each listing its stations in order, which you've stamped, where you are, and its End Boss.
-
-The server enforces "you have to be there": `/api/minigame/result` refuses a station you haven't checked in at today, and check-in teleport only works in dev or demo mode. Each station's quest text is in `data/station-quests.json`; `npm test` fails if a station in `stations.ts` has none. Play it, then decide:
+`/play` (the old stand-alone test page) now redirects to the map. The server enforces "you have to be there": `/api/minigame/result` refuses a station you haven't checked in at today, and teleport check-ins only work in dev or demo mode. Play it, then decide:
 
 - **Works and feels fun by 8:00 pm:** commit to the game. Port mini-games into Phaser levels one at a time; the current screens become the menus around it.
 - **Fighting us:** drop it. Keep the current screens and polish their game feel. We lose 2 hours, not the weekend.

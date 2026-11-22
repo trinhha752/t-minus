@@ -48,6 +48,8 @@ export function MapScreen({
   gold,
   onSelect,
   chrome = true,
+  currentId = CURRENT_STATION,
+  hereNote,
 }: {
   played: Set<string>
   streak: number
@@ -55,10 +57,15 @@ export function MapScreen({
   onSelect: (id: string) => void
   /** Header, realm chips, legend and check-in card; hidden under takeovers. */
   chrome?: boolean
+  /** The station the player is at (from their real location). Defaults to the demo station. */
+  currentId?: string
+  /** Replaces "You're at · realm" when the player isn't at a station, e.g. "Nearest · 0.9 km". */
+  hereNote?: string
 }) {
-  const current = stationById(CURRENT_STATION)
+  const current = stationById(currentId)
+  const currentLine = current.lines[0]
   const next = stationById(NEXT_STATION)
-  const currentPlayed = played.has(CURRENT_STATION)
+  const currentPlayed = played.has(currentId)
   const progress = (line: LineId) => {
     const ids = ROUTES[line]
     return `${ids.filter((id) => played.has(id)).length}/${ids.length}`
@@ -66,7 +73,7 @@ export function MapScreen({
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-[#F3E2C6]">
-      <PixelMap played={played} current={CURRENT_STATION} onSelect={onSelect} interactive={chrome} />
+      <PixelMap played={played} current={currentId} onSelect={onSelect} interactive={chrome} />
 
       {chrome && (
         <>
@@ -159,17 +166,21 @@ export function MapScreen({
               </>
             ) : (
               <>
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-ink bg-[#FDECEA] text-line-red-dark">
-                  <RealmIcon line="red" size={22} />
+                <span
+                  className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-ink"
+                  style={{ backgroundColor: LINES[currentLine].tint, color: LINES[currentLine].dark }}
+                >
+                  <RealmIcon line={currentLine} size={22} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-pixel text-[13px] text-muted">You&apos;re at · {LINES.red.realm}</p>
+                  <p className="truncate font-pixel text-[13px] text-muted">{hereNote ?? `You're at · ${LINES[currentLine].realm}`}</p>
                   <p className="font-pixel text-[22px] font-bold leading-tight">{current.name}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => onSelect(CURRENT_STATION)}
-                  className="flex h-12 items-center gap-1.5 border-[3px] border-ink bg-line-red pl-3.5 pr-4 font-pixel text-[17px] font-bold text-white shadow-[3px_3px_0_#1B1F24] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                  onClick={() => onSelect(currentId)}
+                  style={{ backgroundColor: LINES[currentLine].color }}
+                  className="flex h-12 items-center gap-1.5 border-[3px] border-ink pl-3.5 pr-4 font-pixel text-[17px] font-bold text-white shadow-[3px_3px_0_#1B1F24] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                 >
                   <Play size={15} strokeWidth={3} className="fill-white" />
                   Check in

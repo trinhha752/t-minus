@@ -16,11 +16,11 @@ const MBTA_TO_SLUG = new Map(
   Object.entries(SLUG_TO_MBTA).filter(([k]) => !k.startsWith("_")).map(([slug, id]) => [id, slug])
 );
 
-/** Final bosses by UI line. The red one matches components/run/EndBoss.tsx. */
+/** Final bosses by UI line: the same names as the boss fights, so badges match. */
 const FINAL_BOSSES: Record<LineId, string> = {
-  red: "The Iron Archivist",
-  green: "The Tunnel Warden", // placeholder until the UI names it
-  orange: "The Phantom of the El", // the elevated line torn down in 1987
+  red: "The Iron Archivist", // components/run/LineBoss.tsx
+  green: "The Phantom Conductor", // components/run/ConductorBoss.tsx
+  orange: "HMS Intolerable", // components/run/HarborBoss.tsx
 };
 
 /**

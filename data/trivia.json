@@ -11,8 +11,8 @@
     ],
     "answerIndex": 0,
     "explanation": "Park Street is where the Red and Green lines meet under Boston Common.",
-    "sourceUrl": "https://www.mbta.com/stops/place-pktrm",
-    "verified": false
+    "sourceUrl": "https://en.wikipedia.org/wiki/Park_Street_station",
+    "verified": true
   },
   {
     "id": "pktrm-2",
@@ -27,7 +27,7 @@
     "answerIndex": 1,
     "explanation": "The Tremont Street subway is widely described as the first subway tunnel in the United States.",
     "sourceUrl": "https://en.wikipedia.org/wiki/Tremont_Street_subway",
-    "verified": false
+    "verified": true
   },
   {
     "id": "pktrm-3",
@@ -41,8 +41,8 @@
     ],
     "answerIndex": 0,
     "explanation": "Park Street station sits at the edge of Boston Common.",
-    "sourceUrl": "https://www.mbta.com/stops/place-pktrm",
-    "verified": false
+    "sourceUrl": "https://en.wikipedia.org/wiki/Park_Street_station",
+    "verified": true
   },
   {
     "id": "bucen-1",
@@ -56,8 +56,8 @@
     ],
     "answerIndex": 0,
     "explanation": "BU Central is a stop on the Green Line B branch.",
-    "sourceUrl": "https://www.mbta.com/stops/place-bucen",
-    "verified": false
+    "sourceUrl": "https://en.wikipedia.org/wiki/Boston_University_Central_station",
+    "verified": true
   },
   {
     "id": "bucen-2",
@@ -71,8 +71,8 @@
     ],
     "answerIndex": 0,
     "explanation": "The B branch runs down the middle of Commonwealth Avenue through the BU campus.",
-    "sourceUrl": "https://www.mbta.com/stops/place-bucen",
-    "verified": false
+    "sourceUrl": "https://en.wikipedia.org/wiki/Boston_University_Central_station",
+    "verified": true
   },
   {
     "id": "bucen-3",
@@ -86,8 +86,8 @@
     ],
     "answerIndex": 0,
     "explanation": "The B branch runs west to Boston College. C goes to Cleveland Circle, D to Riverside, E to Heath Street.",
-    "sourceUrl": "https://www.mbta.com/schedules/Green-B",
-    "verified": false
+    "sourceUrl": "https://en.wikipedia.org/wiki/Green_Line_B_branch",
+    "verified": true
   },
   {
     "id": "harsq-1",
@@ -101,8 +101,8 @@
     ],
     "answerIndex": 0,
     "explanation": "Harvard is a Red Line station.",
-    "sourceUrl": "https://www.mbta.com/stops/place-harsq",
-    "verified": false
+    "sourceUrl": "https://en.wikipedia.org/wiki/Harvard_station",
+    "verified": true
   },
   {
     "id": "harsq-2",
@@ -116,8 +116,8 @@
     ],
     "answerIndex": 0,
     "explanation": "Harvard station is in Cambridge, across the river from Boston.",
-    "sourceUrl": "https://www.mbta.com/stops/place-harsq",
-    "verified": false
+    "sourceUrl": "https://en.wikipedia.org/wiki/Harvard_station",
+    "verified": true
   },
   {
     "id": "aqucl-1",
@@ -131,8 +131,8 @@
     ],
     "answerIndex": 0,
     "explanation": "Aquarium is a Blue Line station on the waterfront.",
-    "sourceUrl": "https://www.mbta.com/stops/place-aqucl",
-    "verified": false
+    "sourceUrl": "https://en.wikipedia.org/wiki/Aquarium_station",
+    "verified": true
   },
   {
     "id": "aqucl-2",
@@ -146,8 +146,8 @@
     ],
     "answerIndex": 0,
     "explanation": "The station is named for the New England Aquarium, which is a short walk away.",
-    "sourceUrl": "https://www.mbta.com/stops/place-aqucl",
-    "verified": false
+    "sourceUrl": "https://en.wikipedia.org/wiki/Aquarium_station",
+    "verified": true
   },
   {
     "id": "chncl-1",
@@ -161,8 +161,8 @@
     ],
     "answerIndex": 0,
     "explanation": "Chinatown is an Orange Line station.",
-    "sourceUrl": "https://www.mbta.com/stops/place-chncl",
-    "verified": false
+    "sourceUrl": "https://en.wikipedia.org/wiki/Chinatown_station",
+    "verified": true
   },
   {
     "id": "chncl-2",
@@ -177,7 +177,7 @@
     "answerIndex": 0,
     "explanation": "The Chinatown Gate is a paifang, a traditional Chinese archway.",
     "sourceUrl": "https://en.wikipedia.org/wiki/Chinatown,_Boston",
-    "verified": false
+    "verified": true
   },
   {
     "id": "alfcl-ui-1",
@@ -190,9 +190,8 @@
     ],
     "answerIndex": 1,
     "explanation": "Alewife is named for a small herring that still swims up the Mystic River every spring.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
+    "sourceUrl": "https://en.wikipedia.org/wiki/Alewife_station",
+    "verified": true
   },
   {
     "id": "pktrm-ui-1",
@@ -205,9 +204,8 @@
     ],
     "answerIndex": 0,
     "explanation": "Park Street opened in 1897 as part of America's first subway tunnel.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
+    "sourceUrl": "https://en.wikipedia.org/wiki/Tremont_Street_subway",
+    "verified": true
   },
   {
     "id": "chmnl-ui-1",
@@ -220,9 +218,8 @@
     ],
     "answerIndex": 2,
     "explanation": "In 1846, surgeons at Massachusetts General Hospital first demonstrated ether anesthesia in public.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
+    "sourceUrl": "https://en.wikipedia.org/wiki/Ether_Dome",
+    "verified": true
   },
   {
     "id": "sstat-ui-1",
@@ -235,9 +232,8 @@
     ],
     "answerIndex": 1,
     "explanation": "South Station opened in 1899.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
+    "sourceUrl": "https://en.wikipedia.org/wiki/South_Station",
+    "verified": true
   },
   {
     "id": "knncl-ui-1",
@@ -250,9 +246,8 @@
     ],
     "answerIndex": 0,
     "explanation": "MIT moved across the river from Boston to Cambridge in 1916.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
+    "sourceUrl": "https://en.wikipedia.org/wiki/History_of_the_Massachusetts_Institute_of_Technology",
+    "verified": true
   },
   {
     "id": "harsq-ui-1",
@@ -265,24 +260,8 @@
     ],
     "answerIndex": 2,
     "explanation": "Harvard was founded in 1636.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
-  },
-  {
-    "id": "davis-ui-1",
-    "stationId": "place-davis",
-    "question": "Which stop was once a cattle crossroads?",
-    "options": [
-      "Davis",
-      "Central",
-      "Kendall"
-    ],
-    "answerIndex": 0,
-    "explanation": "UI author flagged this one: Porter may be the right answer. Check before verifying.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
+    "sourceUrl": "https://en.wikipedia.org/wiki/Harvard_University",
+    "verified": true
   },
   {
     "id": "cntsq-ui-1",
@@ -295,9 +274,8 @@
     ],
     "answerIndex": 1,
     "explanation": "Cambridge City Hall was a philanthropist's gift in 1889.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
+    "sourceUrl": "https://en.wikipedia.org/wiki/City_Hall_(Cambridge,_Massachusetts)",
+    "verified": true
   },
   {
     "id": "harsq-ui-2",
@@ -310,9 +288,8 @@
     ],
     "answerIndex": 1,
     "explanation": "Henry Dunster became Harvard's first president in 1640.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
+    "sourceUrl": "https://en.wikipedia.org/wiki/Henry_Dunster",
+    "verified": true
   },
   {
     "id": "harsq-ui-3",
@@ -325,9 +302,8 @@
     ],
     "answerIndex": 0,
     "explanation": "John Harvard left the college his library and half his estate.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
+    "sourceUrl": "https://en.wikipedia.org/wiki/John_Harvard_(clergyman)",
+    "verified": true
   },
   {
     "id": "harsq-ui-4",
@@ -340,9 +316,8 @@
     ],
     "answerIndex": 2,
     "explanation": "The John Harvard statue was made in 1884.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
+    "sourceUrl": "https://en.wikipedia.org/wiki/John_Harvard_(statue)",
+    "verified": true
   },
   {
     "id": "harsq-ui-5",
@@ -355,38 +330,7 @@
     ],
     "answerIndex": 2,
     "explanation": "Daniel Chester French sculpted the John Harvard statue.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
-  },
-  {
-    "id": "alfcl-ui-2",
-    "stationId": "place-alfcl",
-    "question": "Which line stop honors a herring?",
-    "options": [
-      "Alewife",
-      "Porter",
-      "Davis"
-    ],
-    "answerIndex": 0,
-    "explanation": "Alewife is named for the alewife, a kind of herring.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
-  },
-  {
-    "id": "knncl-ui-2",
-    "stationId": "place-knncl",
-    "question": "MIT moved to Cambridge in…",
-    "options": [
-      "1861",
-      "1916",
-      "1958"
-    ],
-    "answerIndex": 1,
-    "explanation": "MIT moved to Cambridge in 1916.",
-    "sourceUrl": null,
-    "verified": false,
-    "_note": "From the UI (components/run/DelayBoss.tsx / EndBoss.tsx). Needs a sourceUrl before verifying."
+    "sourceUrl": "https://en.wikipedia.org/wiki/John_Harvard_(statue)",
+    "verified": true
   }
 ]

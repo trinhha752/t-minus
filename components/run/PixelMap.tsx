@@ -1329,7 +1329,9 @@ function StationPin({
       {showSign &&
         (current ? (
           <span
-            className="pointer-events-none absolute z-[2] flex flex-col items-center border-[3px] border-ink bg-[#F2B233] px-2 pb-1 pt-0.5 font-pixel leading-none text-ink shadow-[3px_3px_0_rgba(27,31,36,0.85)]"
+            onClick={onTap}
+            aria-hidden
+            className="absolute z-[2] flex cursor-pointer flex-col items-center border-[3px] border-ink bg-[#F2B233] px-2 pb-1 pt-0.5 font-pixel leading-none text-ink shadow-[3px_3px_0_rgba(27,31,36,0.85)]"
             style={place}
           >
             <span className="text-[9px] font-bold tracking-[0.12em]">YOU ARE HERE</span>
@@ -1338,7 +1340,9 @@ function StationPin({
         ) : (
           // A station sign: line-color tab (with the branch letter), the name, a check once played
           <span
-            className="pointer-events-none absolute z-[1] flex items-stretch whitespace-nowrap border-2 border-ink bg-[#FBF3DF] font-pixel text-[11px] font-semibold leading-none text-ink shadow-[2px_2px_0_rgba(27,31,36,0.8)]"
+            onClick={onTap}
+            aria-hidden
+            className="absolute z-[1] flex cursor-pointer items-stretch whitespace-nowrap border-2 border-ink bg-[#FBF3DF] font-pixel text-[11px] font-semibold leading-none text-ink shadow-[2px_2px_0_rgba(27,31,36,0.8)]"
             style={place}
           >
             <span

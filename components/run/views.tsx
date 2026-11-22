@@ -31,7 +31,7 @@ import { ProfileScreen } from './Profile'
 const HAS_OWN_GAME = new Set(['harvard'])
 const withGame = (s: Station): Station => (HAS_OWN_GAME.has(s.id) ? s : { ...s, game: MATCH_GAME })
 import { BottomNav, HomeIndicator, StatusBar, type Tab } from './ui'
-import { DEMO_MODE, useMyStation } from '@/components/game/useMyStation'
+import { DEMO_MODE, DEMO_STATIONS, setDemoStation, useDemoStation, useMyStation } from '@/components/game/useMyStation'
 import { lineComplete, nextStation, nextStops, suggestTransfer } from '@/components/game/loop'
 import type { WhereNext } from './MapScreen'
 import type { Arrival } from '@/types'
@@ -42,9 +42,47 @@ const TAB_HREF: Record<Tab, string> = { map: '/', bag: '/inventory', collection:
 // Stations where the End-of-Line Boss can be challenged. Only the Red Line boss exists so far.
 const END_OF_LINE = new Set(['alewife'])
 
+/** Stage-demo controls on the map: stand at one station per line, or start over. */
+function DemoControls({ here, onNewRider }: { here: string; onNewRider: () => void }) {
+  const demo = useDemoStation()
+  const chip =
+    'border-2 border-ink px-1.5 py-1 font-pixel text-[11px] font-bold leading-none shadow-[2px_2px_0_#1B1F24] active:translate-x-px active:translate-y-px active:shadow-none'
+  return (
+    <div className="absolute left-4 right-4 top-[236px] z-20 flex flex-wrap items-center gap-1.5 border-2 border-ink bg-[#F1E7CF] px-2 py-1.5 shadow-[3px_3px_0_rgba(27,31,36,0.85)]">
+      <span className="font-pixel text-[11px] font-bold text-muted">DEMO · stand at</span>
+      {DEMO_STATIONS.map((d) => {
+        const on = demo === d.slug
+        return (
+          <button
+            key={d.slug}
+            type="button"
+            onClick={() => setDemoStation(on ? null : d.slug)}
+            className={`${chip} ${on ? 'text-white' : 'bg-[#FBF3DF] text-ink'}`}
+            style={on ? { backgroundColor: LINES[d.line].color } : { borderLeft: `6px solid ${LINES[d.line].color}` }}
+            aria-pressed={on}
+            title={on ? 'Back to my real location' : `Pretend you're at ${d.label}`}
+          >
+            {d.label}
+          </button>
+        )
+      })}
+      {demo && here === demo && (
+        <button type="button" onClick={() => setDemoStation(null)} className={`${chip} bg-[#FBF3DF] text-ink`}>
+          📍 Real
+        </button>
+      )}
+      <button type="button" onClick={onNewRider} className={`${chip} bg-[#FBF3DF] text-ink`}>
+        ↺ New rider
+      </button>
+    </div>
+  )
+}
+
 /** The station the player is really at (phone location), or the demo station until located. */
 function useHere() {
   const here = useMyStation()
+  const demo = useDemoStation()
+  if (demo) return { id: demo, note: undefined, located: true, settled: true }
   const id = here.slug ?? CURRENT_STATION
   const note =
     here.slug && !here.inRange && here.metres != null
@@ -122,15 +160,7 @@ function MapLayer() {
         }}
         onSelect={(id) => router.push(`/station/${id}`)}
       />
-      {DEMO_MODE && (
-        <button
-          type="button"
-          onClick={() => void newRider()}
-          className="absolute left-4 top-[238px] z-20 border-2 border-ink bg-[#FBF3DF] px-2 py-1 font-pixel text-[12px] font-bold shadow-[2px_2px_0_#1B1F24] active:translate-x-px active:translate-y-px active:shadow-none"
-        >
-          ↺ New rider (demo)
-        </button>
-      )}
+      {DEMO_MODE && <DemoControls here={here.id} onNewRider={() => void newRider()} />}
       <StatusBar />
       <BottomNav tab="map" onChange={(t) => router.push(TAB_HREF[t])} />
     </>

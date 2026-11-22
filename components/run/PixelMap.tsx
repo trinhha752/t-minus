@@ -112,17 +112,77 @@ const RIVER: Pt[] = [
   ...cubic([400, 238], [460, 226], [520, 210], [600, 190]),
 ].map(spread)
 
-// The harbor is everything east of this edge.
-const HARBOR_EDGE: Pt[] = (
+// Boston Harbor: everything east of this coastline (north to south), stylized but shaped like the
+// real one: the Mystic and Charlestown Navy Yard, the North End and its wharves, the Fort Point
+// Channel and South Boston with Castle Island, Dorchester Bay and Columbia Point, Squantum,
+// Wollaston Beach and Quincy Bay. Pulled back from the stations so the stops keep their room.
+const COAST: Pt[] = [
+  [470, -300],
+  [455, 60],
+  [430, 128], // the Mystic River mouth
+  [452, 150],
+  [462, 182], // Charlestown Navy Yard piers
+  [440, 196],
+  [452, 212],
+  [412, 226],
+  [384, 244], // the Charles meets the harbor
+  [394, 262],
+  [400, 286], // the North End
+  [392, 318],
+  [404, 330], // Commercial Wharf
+  [384, 346],
+  [380, 372],
+  [398, 380], // Long Wharf, below State
+  [406, 404],
+  [372, 412],
+  [370, 432],
+  [388, 440], // Rowes Wharf
+  [376, 452], // the Fort Point Channel mouth
+  [404, 462], // the Seaport
+  [440, 478],
+  [476, 500],
+  [500, 534],
+  [524, 556], // Castle Island
+  [508, 576],
+  [470, 588], // L Street Beach
+  [430, 606],
+  [398, 622],
+  [372, 640], // Dorchester Bay
+  [360, 662],
+  [374, 676],
+  [410, 684], // Columbia Point
+  [420, 704],
+  [400, 718],
+  [370, 722],
+  [362, 740],
+  [380, 752],
+  [414, 760], // Squantum
+  [430, 780],
+  [404, 790],
+  [384, 806], // Wollaston Beach
+  [382, 840],
+  [392, 868],
+  [418, 884], // Quincy Bay, Houghs Neck
+  [424, 910],
+  [396, 924],
+  [382, 948],
+  [400, 968], // the Fore River
+  [384, 1000],
+  [380, 1200],
+]
+const HARBOR: Pt[] = [...COAST, [2000, 1200] as Pt, [2000, -300] as Pt].map(spread)
+
+// Rivers that run into the harbor besides the Charles
+const MYSTIC: Pt[] = [
+  ...cubic([120, 110], [200, 124], [270, 132], [330, 136]),
+  ...cubic([330, 136], [380, 138], [410, 134], [446, 132]),
+].map(spread)
+const FORT_POINT: Pt[] = (
   [
-    [620, -300],
-    [440, 180],
-    [376, 236],
-    [354, 300],
-    [360, 400],
-    [368, 520],
-    [374, 640],
-    [372, 1200],
+    [382, 452],
+    [364, 482],
+    [356, 520],
+    [352, 556],
   ] as Pt[]
 ).map(spread)
 
@@ -204,6 +264,8 @@ const TRACK_LINES: { line: LineId; path: Polyline }[] = TRACKS.map((t) => ({
   ]),
 }))
 const RIVER_LINE = polyline(RIVER)
+const MYSTIC_LINE = polyline(MYSTIC)
+const FORT_POINT_LINE = polyline(FORT_POINT)
 const MALL_LINE = polyline(MALL)
 
 /** Distance to a polyline, or Infinity when the point is clearly farther than `max`. */
@@ -227,14 +289,27 @@ function dist(x: number, y: number, l: Polyline, max: number) {
   return Math.sqrt(best)
 }
 
-function harborX(y: number) {
-  for (let i = 1; i < HARBOR_EDGE.length; i++) {
-    const [ax, ay] = HARBOR_EDGE[i - 1]
-    const [bx, by] = HARBOR_EDGE[i]
-    if (y <= by) return ax + ((y - ay) / (by - ay || 1)) * (bx - ax)
+/** Point in polygon (even-odd), with a quick bounding check. */
+const boxOf = (poly: Pt[]) => ({
+  poly,
+  x0: Math.min(...poly.map((p) => p[0])),
+  x1: Math.max(...poly.map((p) => p[0])),
+  y0: Math.min(...poly.map((p) => p[1])),
+  y1: Math.max(...poly.map((p) => p[1])),
+})
+function inside(x: number, y: number, b: ReturnType<typeof boxOf>) {
+  if (x < b.x0 || x > b.x1 || y < b.y0 || y > b.y1) return false
+  const p = b.poly
+  let hit = false
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+    const [xi, yi] = p[i]
+    const [xj, yj] = p[j]
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit
   }
-  return HARBOR_EDGE[HARBOR_EDGE.length - 1][0]
+  return hit
 }
+const HARBOR_BOX = boxOf(HARBOR)
+const inHarbor = (x: number, y: number) => inside(x, y, HARBOR_BOX)
 
 const BLOCK = 24 // city block size, map units
 const ROAD = 3.5
@@ -250,11 +325,14 @@ const enum Ground {
 }
 
 function classify(x: number, y: number): Ground {
-  if (x > harborX(y)) return Ground.Deep
+  if (inHarbor(x, y)) return Ground.Deep
   const gx = x / SPREAD
   const gy = y / SPREAD
   if (((gx - 40) / 18) ** 2 + ((gy - 232) / 12) ** 2 < 1) return Ground.Water // Fresh Pond
   if (((gx + 120) / 12) ** 2 + ((gy - 610) / 8) ** 2 < 1) return Ground.Water // reservoir
+  const side = Math.min(dist(x, y, MYSTIC_LINE, 14), dist(x, y, FORT_POINT_LINE, 10) + 4)
+  if (side < 11) return Ground.Water
+  if (side < 13) return Ground.Sand
   const river = dist(x, y, RIVER_LINE, 20)
   if (river < 11) return Ground.Water
   if (river < 13) return Ground.Sand

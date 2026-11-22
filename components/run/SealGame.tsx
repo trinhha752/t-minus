@@ -43,13 +43,13 @@ const walkable = (x: number, y: number) => x >= 0 && x < COLS && y >= 0 && y < R
 
 /** Who walks the plaza: [column, direction (1 = down), speed in tiles/sec, how many, scooters?] */
 const LANES: [number, 1 | -1, number, number, boolean?][] = [
-  [1, 1, 1.3, 3],
-  [2, -1, 2.8, 2, true],
-  [3, 1, 1.4, 3],
-  [4, -1, 1.6, 3],
-  [5, 1, 1.5, 3],
-  [6, -1, 3, 2, true],
-  [7, 1, 1.4, 3],
+  [1, 1, 1.3, 2],
+  [2, -1, 2.8, 1, true],
+  [3, 1, 1.4, 2],
+  [4, -1, 1.6, 1],
+  [5, 1, 1.5, 2],
+  [6, -1, 3, 1, true],
+  [7, 1, 1.4, 2],
 ]
 
 /** Gold: 100 for making it plus 15 per second left on the clock, up to 240. Losing pays nothing. */

@@ -1,0 +1,40 @@
+# Deploys the game to https://tminus.boston every time someone pushes to main.
+#
+# The Vercel project can't be connected to this repo directly (it lives on a teammate's Vercel
+# account), so this does what `vercel deploy --prod` does from a laptop: upload the code and let
+# Vercel build it there, with the env vars already saved in the Vercel project.
+#
+# Needs three repo secrets (Settings → Secrets and variables → Actions):
+#   VERCEL_TOKEN       a token from https://vercel.com/account/settings/tokens
+#   VERCEL_ORG_ID      the Vercel team id (from .vercel/project.json after `vercel link`)
+#   VERCEL_PROJECT_ID  the Vercel project id (same file)
+# You can also run it by hand: Actions → "Deploy to Vercel" → Run workflow.
+
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# If two pushes land close together, only the newest one deploys.
+concurrency:
+  group: vercel-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy to production
+        run: npx --yes vercel@66.6.0 deploy --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"

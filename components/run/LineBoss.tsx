@@ -171,7 +171,14 @@ const hudOf = (f: Fight): Hud => ({
 
 // ---------- Component ----------
 
-export function LineBoss(props: { line: LineId; maxHp: number; stats: FighterStats; onExit: (gold: number) => void }) {
+export function LineBoss(props: {
+  line: LineId
+  maxHp: number
+  stats: FighterStats
+  onExit: (gold: number) => void
+  /** Called once when a fight ends, e.g. to save the result on the server. */
+  onResult?: (result: { won: boolean; gold: number; dealt: number }) => void
+}) {
   // A retry is a fresh fight
   const [attempt, setAttempt] = useState(0)
   return <BossFight key={attempt} {...props} onRetry={() => setAttempt((n) => n + 1)} />
@@ -183,12 +190,14 @@ function BossFight({
   stats,
   onExit,
   onRetry,
+  onResult,
 }: {
   line: LineId
   maxHp: number
   stats: FighterStats
   onExit: (gold: number) => void
   onRetry: () => void
+  onResult?: (result: Result) => void
 }) {
   const boss = BOSSES[line] ?? BOSSES.red!
   const lineInfo = LINES[line]
@@ -196,6 +205,14 @@ function BossFight({
   const fight = useRef<Fight | null>(null)
   const [hud, setHud] = useState<Hud>(() => hudOf(newFight(maxHp, stats)))
   const [result, setResult] = useState<Result | null>(null)
+  // Report the outcome once per fight (a retry remounts this component).
+  const reported = useRef(false)
+  useEffect(() => {
+    if (result && !reported.current) {
+      reported.current = true
+      onResult?.(result)
+    }
+  }, [result, onResult])
 
   const sync = () => fight.current && setHud(hudOf(fight.current))
   const float = (text: string, color: string, x: number, y: number, big = false) =>

@@ -187,6 +187,16 @@ async function main() {
     `${s1.status}/${s2.status}`);
   if (s1.body.ok) await call("POST", "/api/final-boss/forfeit", { fightId: s1.body.data.id });
 
+  // The parry End Boss runs in the browser and reports its result.
+  r = await call("POST", "/api/final-boss/result", { chapterId: "green", won: true });
+  check("boss result: refused before the line is complete", r.status === 400);
+  r = await call("POST", "/api/final-boss/result", { chapterId: "green", won: true, demo: true });
+  check("boss result: a first (demo) win pays out", r.body.ok && r.body.data.firstWin && r.body.data.pointsEarned === 2500, JSON.stringify(r.body.data));
+  r = await call("POST", "/api/final-boss/result", { chapterId: "green", won: true, demo: true });
+  check("boss result: a second win pays nothing", r.body.ok && !r.body.data.firstWin && r.body.data.pointsEarned === 0);
+  r = await call("GET", "/api/progress");
+  check("boss result: progress shows the Green boss defeated", r.body.data?.chapters?.find((c: any) => c.id === "green")?.bossDefeated === true);
+
   // Forfeit: a green fight can't start (not cleared), so forfeit a bogus id.
   r = await call("POST", "/api/final-boss/forfeit", { fightId: "0" });
   check("final boss: forfeiting a fight you don't have is a 400", r.status === 400);

@@ -294,7 +294,7 @@ const LAMPS = [
   { name: 'STOP', on: '#FF4A3D', off: '#5A1E1A' },
   { name: 'SLOW', on: '#FFD24A', off: '#5A4A1A' },
   { name: 'GO', on: '#3FE07A', off: '#1A4A2A' },
-  { name: 'LUNAR', on: '#CFE9FF', off: '#33414F' },
+  { name: 'FAST', on: '#CFE9FF', off: '#33414F' },
 ]
 const SIGNAL_TRAIN = 60
 const START_LEN = 3

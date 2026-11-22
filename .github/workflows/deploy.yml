@@ -4,10 +4,9 @@
 # account), so this does what `vercel deploy --prod` does from a laptop: upload the code and let
 # Vercel build it there, with the env vars already saved in the Vercel project.
 #
-# Needs three repo secrets (Settings → Secrets and variables → Actions):
-#   VERCEL_TOKEN       a token from https://vercel.com/account/settings/tokens
-#   VERCEL_ORG_ID      the Vercel team id (from .vercel/project.json after `vercel link`)
-#   VERCEL_PROJECT_ID  the Vercel project id (same file)
+# Needs one repo secret (Settings → Secrets and variables → Actions):
+#   VERCEL_TOKEN   a token from https://vercel.com/account/settings/tokens, scoped to the tminus team
+# (VERCEL_ORG_ID / VERCEL_PROJECT_ID secrets, if set, are no longer used.)
 # You can also run it by hand: Actions → "Deploy to Vercel" → Run workflow.
 
 name: Deploy to Vercel
@@ -27,8 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # Which Vercel team and project to deploy to. These are ids, not passwords, so they live here
+      # rather than in secrets (where a stray space when pasting broke the lookup).
+      VERCEL_ORG_ID: team_aHkOeQyO2g35DFNjon8SWG19
+      VERCEL_PROJECT_ID: prj_kcYWo9iXopmuZ9AII4cByJKQluPj
     steps:
       - uses: actions/checkout@v5
 
@@ -36,5 +37,10 @@ jobs:
         with:
           node-version: 22
 
+      # Fails fast with a clear message if the token is missing or can't see the tminus team
+      - name: Check the Vercel token
+        run: npx --yes vercel@66.6.0 whoami --token="${{ secrets.VERCEL_TOKEN }}"
+
+      # Plain `vercel --prod` (not `vercel deploy`): the repo has a deploy/ folder the CLI confuses with the command
       - name: Deploy to production
-        run: npx --yes vercel@66.6.0 deploy --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
+        run: npx --yes vercel@66.6.0 --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"

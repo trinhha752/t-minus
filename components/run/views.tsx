@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation'
 import { Swords, TriangleAlert } from 'lucide-react'
 import { StationCard } from '@/components/cards/StationCard'
 import { DelayBoss, type LiveDelayBoss } from './DelayBoss'
+import { DelayGame, type DelayGameKind } from './DelayGames'
 import { LineBoss } from './LineBoss'
 import { loadoutStats } from './items'
 import { LINES } from './stations'
@@ -348,11 +349,33 @@ function useLiveDelayBoss(stationId: string, ready: boolean) {
   return { live, status }
 }
 
+const DELAY_FIGHTS: ('trivia' | DelayGameKind)[] = ['trivia', 'signal', 'dodge']
+
 export function BossView() {
   const router = useRouter()
-  const { runId, bossIndex, gold, played, streak, refresh } = useRun()
+  const { runId, bossIndex, gold, played, streak, refresh, addGold } = useRun()
   const here = useHere()
-  const { live, status } = useLiveDelayBoss(here.id, here.settled)
+  // Each delay is one of three fights, so they don't all play the same
+  const kind = DELAY_FIGHTS[(runId + bossIndex) % DELAY_FIGHTS.length]
+  // Only the trivia fight uses the shared server boss (and starts a simulated one in demo mode)
+  const { live, status } = useLiveDelayBoss(here.id, here.settled && kind === 'trivia')
+  if (kind !== 'trivia') {
+    return (
+      <>
+        <DelayGame
+          key={runId}
+          kind={kind}
+          bossIndex={bossIndex}
+          line={stationById(here.id).lines[0]}
+          onExit={(earned) => {
+            addGold(earned)
+            router.push('/')
+          }}
+        />
+        <HomeIndicator tone="light" />
+      </>
+    )
+  }
   if (status === 'loading') return <div className="absolute inset-0 tex-leather" />
   return (
     <>

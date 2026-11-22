@@ -69,7 +69,7 @@ export function MapScreen({
   chrome?: boolean
   /** The station the player is at (from their real location). Defaults to the demo station. */
   currentId?: string
-  /** Replaces "You're at · realm" when the player isn't at a station, e.g. "Nearest · 0.9 km". */
+  /** Replaces "You're at · <line>" when the player isn't at a station, e.g. "Nearest · 0.9 km". */
   hereNote?: string
   /** Where to ride next after this station is stamped; null when the whole line is stamped. */
   nextId?: string | null
@@ -234,7 +234,7 @@ export function MapScreen({
                   <RealmIcon line={currentLine} size={22} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-pixel text-[13px] text-muted">{hereNote ?? `You're at · ${LINES[currentLine].realm}`}</p>
+                  <p className="truncate font-pixel text-[13px] text-muted">{hereNote ?? `You're at · ${LINES[currentLine].name}`}</p>
                   <p className="font-pixel text-[22px] font-bold leading-tight">{current.name}</p>
                 </div>
                 <button

@@ -18,6 +18,9 @@ import { Coin } from './fantasy'
 import { NUM, PANEL, PixelScreen } from './pixel'
 import { StatusBar } from './ui'
 import { MINI_BOSS } from './stats'
+import { DelayChart } from '@/components/game/DelayChart'
+
+const TEAM_NAME: Record<LineId, 'Red' | 'Green' | 'Orange'> = { red: 'Red', green: 'Green', orange: 'Orange' }
 
 export type DelayGameKind = 'signal' | 'dodge'
 
@@ -123,6 +126,10 @@ function Intro({ boss, line, title, rules, onStart }: { boss: { name: string; ta
         </p>
         <p className="font-pixel text-[23px] font-bold leading-tight">{boss.name}</p>
         <p className="mt-1 text-[13px] italic leading-snug text-ink-soft">{boss.taunt}</p>
+        {/* The real delay on this line, from Tiger Data */}
+        <div className="mt-2 flex justify-center">
+          <DelayChart line={TEAM_NAME[line]} />
+        </div>
         <p className="mt-2.5 font-pixel text-[17px] font-bold">{title}</p>
         <div className="mt-1 text-[13px] leading-snug">{rules}</div>
         <button

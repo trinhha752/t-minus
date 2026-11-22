@@ -228,6 +228,12 @@ curl "localhost:3000/api/trivia?line=Red"                     # Delay Boss quest
 
 Still mock (the shape is final, the data is not): `/api/chat`.
 
+### Tiger Data
+
+- `prediction_snapshots` is a **hypertable**: every MBTA prediction, ~1,300 rows every 15 s (2M+ so far), with **columnstore compression** (about 89% smaller: 100 MB → 11 MB).
+- Two **continuous aggregates** keep 5-minute buckets up to date in the background: `delay_5m` (avg/max delay) and `late_share_5m` (share of predictions 5+ min late, the signal that spawns a Delay Boss).
+- `GET /api/delays?line=Orange&hours=3` serves the chart shown when a Delay Boss appears ("THE REAL DELAY", with the 50% boss line), so a 3-hour chart is ~36 pre-computed rows instead of scanning raw data.
+
 ### Testing the backend
 
 - **See it working:** open <http://localhost:3000/dev>. It's a plain console that shows the live delay bosses, a countdown to the next trains, and buttons to clear stations and fight a final boss. It's not the game UI.

@@ -69,6 +69,13 @@ async function main() {
     r.body.ok && r.body.data.stampedStationIds.includes("place-pktrm") && r.body.data.points > 0,
     `${r.body.data?.points} pts, stamps ${r.body.data?.stampedStationIds?.join(",")}`);
 
+  // Tiger Data: delay history from the continuous aggregates
+  r = await call("GET", "/api/delays?line=Orange&hours=3");
+  check("delays: Orange history from late_share_5m", r.body.ok && r.body.data.points.length > 0 && typeof r.body.data.points[0].latePct === "number",
+    `${r.body.data?.points?.length} buckets, ${r.body.data?.stats?.snapshotRows} rows, ${r.body.data?.stats?.compressionSavedPct}% compressed`);
+  r = await call("GET", "/api/delays?line=Purple");
+  check("delays: unknown line is a 400", r.status === 400);
+
   // Leaderboard
   r = await call("GET", "/api/leaderboard?scope=line");
   check("leaderboard: four teams ranked", r.body.ok && r.body.data.rows.length === 4 && r.body.data.rows[0].rank === 1,

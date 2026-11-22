@@ -107,8 +107,11 @@ export function DelayBoss({
   streak,
   onExit,
   live,
+  insight,
 }: {
   preview?: BossState
+  /** Shown under the boss's taunt on the takeover, e.g. the real delay chart. */
+  insight?: ReactNode
   /** The real shared boss; omitted = the local demo fight. */
   live?: LiveDelayBoss
   /** Which boss from BOSSES; picked by the caller so rendering stays pure. */
@@ -198,6 +201,7 @@ export function DelayBoss({
     return (
       <Takeover
         lineLabel={lineLabel}
+        insight={insight}
         boss={boss}
         frozen={frozen}
         played={played}
@@ -787,6 +791,7 @@ function Outcome({
 
 function Takeover({
   lineLabel = LINE,
+  insight,
   boss,
   frozen,
   played,
@@ -796,6 +801,7 @@ function Takeover({
   onExit,
 }: {
   lineLabel?: { name: string; delay: string }
+  insight?: ReactNode
   boss: (typeof BOSSES)[number]
   frozen: boolean
   played: Set<string>
@@ -850,7 +856,7 @@ function Takeover({
         <div className="relative">
           <div className="absolute inset-0 -z-0 scale-125 rounded-full bg-[radial-gradient(circle,rgba(218,41,28,0.55),transparent_65%)]" />
           <div className="relative">
-            <BossArt mood="idle" frozen={frozen} size={190} />
+            <BossArt mood="idle" frozen={frozen} size={insight ? 140 : 190} />
           </div>
         </div>
         <h2
@@ -867,6 +873,7 @@ function Takeover({
           <OrnateCorners inset={4} />
           <p className="relative text-center font-fell text-[22px] italic leading-snug text-[#2B1D10]">{boss.taunt}</p>
         </div>
+        {insight && <div className="mt-3 flex w-full justify-center">{insight}</div>}
       </div>
 
       {/* Actions in thumb zone */}

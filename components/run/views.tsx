@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation'
 import { Swords, TriangleAlert } from 'lucide-react'
 import { StationCard } from '@/components/cards/StationCard'
 import { DelayBoss, type LiveDelayBoss } from './DelayBoss'
+import { DelayChart } from '@/components/game/DelayChart'
 import { DelayGame, type DelayGameKind } from './DelayGames'
 import { LineBoss } from './LineBoss'
 import { loadoutStats } from './items'
@@ -402,6 +403,7 @@ export function BossView() {
       <DelayBoss
         key={`${runId}-${live ? 'live' : 'local'}`}
         live={live ?? undefined}
+        insight={<DelayChart line={TEAM_OF[stationById(here.id).lines[0]]} />}
         bossIndex={bossIndex}
         gold={gold}
         played={played}

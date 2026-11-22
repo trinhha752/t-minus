@@ -164,6 +164,27 @@ SELECT add_continuous_aggregate_policy('delay_5m',
   schedule_interval => INTERVAL '1 minute',
   if_not_exists => TRUE);
 
+-- Share of predictions running 5+ minutes late, per route, 5-minute buckets.
+-- The Delay Boss spawns when about half a line's trains are this late, so this
+-- is the chart shown when one appears (lib/delays.ts, /api/delays).
+CREATE MATERIALIZED VIEW IF NOT EXISTS late_share_5m
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('5 minutes', observed_at) AS bucket,
+  route,
+  COUNT(*)                                        AS samples,
+  COUNT(*) FILTER (WHERE delay_seconds >= 300)    AS late
+FROM prediction_snapshots
+WHERE delay_seconds IS NOT NULL
+GROUP BY bucket, route
+WITH NO DATA;
+
+SELECT add_continuous_aggregate_policy('late_share_5m',
+  start_offset => INTERVAL '2 hours',
+  end_offset   => INTERVAL '1 minute',
+  schedule_interval => INTERVAL '1 minute',
+  if_not_exists => TRUE);
+
 -- Compression keeps the free tier comfortable over a 24h hackathon.
 ALTER TABLE prediction_snapshots SET (
   timescaledb.compress,

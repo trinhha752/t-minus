@@ -21,7 +21,7 @@ export function StatusBar({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
   const color = tone === 'dark' ? 'text-ink' : 'text-white'
   return (
     <div
-      className={`pointer-events-none absolute inset-x-0 top-0 z-50 flex h-[54px] items-center justify-between px-8 pt-1 ${color}`}
+      className={`pointer-events-none absolute inset-x-0 top-0 z-50 hidden h-[54px] items-center justify-between px-8 pt-1 sm:flex ${color}`}
       aria-hidden
     >
       <span className="w-14 text-[16px] font-semibold tracking-tight">9:41</span>
@@ -37,7 +37,7 @@ export function StatusBar({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
 
 export function HomeIndicator({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-2 z-50 flex justify-center" aria-hidden>
+    <div className="pointer-events-none absolute inset-x-0 bottom-2 z-50 hidden justify-center sm:flex" aria-hidden>
       <span className={`h-[5px] w-[134px] rounded-full ${tone === 'dark' ? 'bg-ink' : 'bg-white'}`} />
     </div>
   )

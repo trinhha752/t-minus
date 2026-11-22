@@ -4,7 +4,7 @@
 //   /                         MapView
 //   /inventory                InventoryView (the Bag tab: items, loadout and the Station Shop)
 //   /station/[id]             StationView  (map with the station card open)
-//   /station/[id]/play        PlayView     (Harvard: Two Truths and a Lie)
+//   /station/[id]/play        PlayView     (Two Lies and a Truth or Landmark Match)
 //   /station/[id]/results     ResultsView
 //   /boss                     BossView     (Delay Boss mini-boss fight)
 //   /final-boss               EndBossView  (End-of-Line Boss: The Iron Archivist)
@@ -15,19 +15,21 @@ import { Swords, TriangleAlert } from 'lucide-react'
 import { StationCard } from '@/components/cards/StationCard'
 import { DelayBoss } from './DelayBoss'
 import { EndBoss } from './EndBoss'
-import { GameFrame } from './GameFrame'
 import { MapScreen } from './MapScreen'
 import { ResultsScreen } from './ResultsScreen'
 import { useRun } from './RunProvider'
 import { CURRENT_STATION, stationById, type Station } from './stations'
 import { MATCH_GAME, MatchGame } from './MatchGame'
+import { TRUTH_GAME, TruthGame } from './TruthGame'
+import { TRUTH_ROUNDS } from './truths'
+import type { GameResult } from './GameFrame'
 import { Inventory } from './Inventory'
 import { Collection } from './Collection'
 import { ProfileScreen } from './Profile'
 
-/** Stations with their own hand-made game; every other station plays Landmark Match for now. */
-const HAS_OWN_GAME = new Set(['harvard'])
-const withGame = (s: Station): Station => (HAS_OWN_GAME.has(s.id) ? s : { ...s, game: MATCH_GAME })
+/** Stations with Two Lies and a Truth questions play that; the rest play Landmark Match. */
+const isTruthGame = (id: string) => id in TRUTH_ROUNDS
+const withGame = (s: Station): Station => ({ ...s, game: isTruthGame(s.id) ? TRUTH_GAME : MATCH_GAME })
 import { BottomNav, HomeIndicator, StatusBar, type Tab } from './ui'
 import { DEMO_MODE, useMyStation } from '@/components/game/useMyStation'
 import { lineComplete, nextStation, nextStops, suggestTransfer } from '@/components/game/loop'
@@ -280,33 +282,18 @@ export function StationView({ id }: { id: string }) {
 export function PlayView({ id }: { id: string }) {
   const router = useRouter()
   const { runId, finishGame, startGame } = useRun()
-  if (!HAS_OWN_GAME.has(id)) {
-    // Every other station plays Landmark Match (it shows its own results).
-    return (
-      <>
-        <MatchGame
-          key={runId}
-          seed={runId}
-          station={stationById(id)}
-          onFinish={(r) => finishGame(r, id)}
-          onPlayAgain={startGame}
-          onMap={() => router.push('/')}
-        />
-        <HomeIndicator tone="light" />
-      </>
-    )
+  // Both games show their own results. Keyed on runId: Next keeps this route alive between
+  // visits, so a new run must remount the game.
+  const props = {
+    seed: runId,
+    station: stationById(id),
+    onFinish: (r: GameResult) => finishGame(r, id),
+    onPlayAgain: startGame,
+    onMap: () => router.push('/'),
   }
   return (
     <>
-      {/* Keyed on runId: Next keeps this route alive between visits, so a new run must remount the game. */}
-      <GameFrame
-        key={runId}
-        onFinish={(r) => {
-          finishGame(r)
-          router.push(`/station/${id}/results`)
-        }}
-        onQuit={() => router.push('/')}
-      />
+      {isTruthGame(id) ? <TruthGame key={runId} {...props} /> : <MatchGame key={runId} {...props} />}
       <HomeIndicator tone="light" />
     </>
   )

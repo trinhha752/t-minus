@@ -28,7 +28,7 @@ const PANEL = 'border-[3px] border-ink bg-[#FBF3DF] shadow-[4px_4px_0_rgba(27,31
 const byId = new Map(STATIONS.map((s) => [s.id, s]))
 
 /** Small seeded random numbers, so a round is the same on the server and in the browser. */
-function rng(seed: string) {
+export function rng(seed: string) {
   let h = 1779033703
   for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 3432918353)
   return () => {
@@ -39,7 +39,7 @@ function rng(seed: string) {
   }
 }
 
-function shuffle<T>(list: T[], rand: () => number) {
+export function shuffle<T>(list: T[], rand: () => number) {
   const out = [...list]
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1))

@@ -10,6 +10,8 @@
 // Combos build while you keep landing hits and reset when you get hit. Potions heal a heart, but
 // you can't parry while you drink.
 
+import { ConductorFight } from './ConductorBoss'
+import { HarborFight } from './HarborBoss'
 import { useEffect, useRef, useState } from 'react'
 import { FlaskConical, Heart, Map as MapIcon, RotateCcw, Shield, Skull, Swords, Trophy, X } from 'lucide-react'
 import { LINES, type LineId } from './stations'
@@ -181,7 +183,9 @@ export function LineBoss(props: {
 }) {
   // A retry is a fresh fight
   const [attempt, setAttempt] = useState(0)
-  return <BossFight key={attempt} {...props} onRetry={() => setAttempt((n) => n + 1)} />
+  // Each line has its own fight: Red parries, Green plays rhythm, Orange flings tea crates
+  const Fight = props.line === 'green' ? ConductorFight : props.line === 'orange' ? HarborFight : BossFight
+  return <Fight key={attempt} {...props} onRetry={() => setAttempt((n) => n + 1)} />
 }
 
 function BossFight({

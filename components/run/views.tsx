@@ -14,7 +14,8 @@ import { useRouter } from 'next/navigation'
 import { Swords, TriangleAlert } from 'lucide-react'
 import { StationCard } from '@/components/cards/StationCard'
 import { DelayBoss } from './DelayBoss'
-import { EndBoss } from './EndBoss'
+import { LineBoss } from './LineBoss'
+import { loadoutStats } from './items'
 import { MapScreen } from './MapScreen'
 import { ResultsScreen } from './ResultsScreen'
 import { useRun } from './RunProvider'
@@ -22,14 +23,19 @@ import { CURRENT_STATION, stationById, type Station } from './stations'
 import { MATCH_GAME, MatchGame } from './MatchGame'
 import { TRUTH_GAME, TruthGame } from './TruthGame'
 import { TRUTH_ROUNDS } from './truths'
+import { SEAL_GAME, SealGame } from './SealGame'
 import type { GameResult } from './GameFrame'
 import { Inventory } from './Inventory'
 import { Collection } from './Collection'
 import { ProfileScreen } from './Profile'
 
-/** Stations with Two Lies and a Truth questions play that; the rest play Landmark Match. */
+/** BU Central has its own game; stations with Two Lies and a Truth questions play that; the rest play Landmark Match. */
+const isSealGame = (id: string) => id === 'bucentral'
 const isTruthGame = (id: string) => id in TRUTH_ROUNDS
-const withGame = (s: Station): Station => ({ ...s, game: isTruthGame(s.id) ? TRUTH_GAME : MATCH_GAME })
+const withGame = (s: Station): Station => ({
+  ...s,
+  game: isSealGame(s.id) ? SEAL_GAME : isTruthGame(s.id) ? TRUTH_GAME : MATCH_GAME,
+})
 import { BottomNav, HomeIndicator, StatusBar, type Tab } from './ui'
 import { DEMO_MODE, useMyStation } from '@/components/game/useMyStation'
 import { lineComplete, nextStation, nextStops, suggestTransfer } from '@/components/game/loop'
@@ -209,14 +215,24 @@ export function MapView() {
 
 export function EndBossView() {
   const router = useRouter()
-  const { runId, endBossHp, gold, addGold } = useRun()
+  const { runId, endBossHp, addGold, equipped, owned } = useRun()
+  const loadout = loadoutStats(equipped, owned)
+  const stats = {
+    hearts: loadout.hearts,
+    damage: loadout.damage,
+    combo: loadout.combo,
+    // Two potions to start, plus one per Healing Tonic in your loadout
+    potions: 2 + equipped.filter((id) => id === 'tonic').length,
+    shield: equipped.includes('shield'),
+  }
   return (
     <>
       {/* Keyed on runId: each challenge is a fresh fight even though Next keeps this route alive. */}
-      <EndBoss
+      <LineBoss
         key={runId}
+        line="red"
         maxHp={endBossHp}
-        gold={gold}
+        stats={stats}
         onExit={(earned) => {
           addGold(earned)
           router.push('/')
@@ -293,7 +309,13 @@ export function PlayView({ id }: { id: string }) {
   }
   return (
     <>
-      {isTruthGame(id) ? <TruthGame key={runId} {...props} /> : <MatchGame key={runId} {...props} />}
+      {isSealGame(id) ? (
+        <SealGame key={runId} {...props} />
+      ) : isTruthGame(id) ? (
+        <TruthGame key={runId} {...props} />
+      ) : (
+        <MatchGame key={runId} {...props} />
+      )}
       <HomeIndicator tone="light" />
     </>
   )

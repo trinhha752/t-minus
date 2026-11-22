@@ -2,7 +2,8 @@
 // the rider has to find the truth. The true statements come from the station's landmark fact
 // (landmarks.ts) and its local story (stations.ts), plus well-known facts about the place.
 //
-// Stations listed here play this game; every other station plays Landmark Match.
+// Stations listed here play this game; BU Central has its own game (SealGame) and every
+// other station plays Landmark Match.
 
 export type TruthRound = { topic: string; truth: string; lies: [string, string] }
 
@@ -280,23 +281,6 @@ export const TRUTH_ROUNDS: Record<string, TruthRound[]> = {
       topic: 'Neighbors',
       truth: 'Blandford Street is right next to Boston University.',
       lies: ['Blandford Street is in downtown Quincy.', 'Blandford is named after a Red Sox pitcher.'],
-    },
-  ],
-  bucentral: [
-    {
-      topic: 'Dr. King',
-      truth: 'Martin Luther King Jr. earned his PhD at Boston University in 1955.',
-      lies: ['Martin Luther King Jr. earned his PhD at BU in 1985.', 'Martin Luther King Jr. studied engineering at BU.'],
-    },
-    {
-      topic: 'Marsh Plaza',
-      truth: 'A sculpture of flying doves in Marsh Plaza honors Martin Luther King Jr.',
-      lies: ['Marsh Chapel was built in 1655.', 'Marsh Chapel sits on an island in a lake.'],
-    },
-    {
-      topic: 'The legend',
-      truth: "BU legend says if you step on the seal in Marsh Plaza, you won't graduate in four years.",
-      lies: ['Legend says stepping on the seal makes you rich.', 'Legend says the seal glows on the first day of class.'],
     },
   ],
   babcock: [

@@ -139,9 +139,9 @@ export const LANDMARK_INFO: Record<string, LandmarkInfo> = {
     photo: { src: '/art/landmarks/amory.jpg', credit: "Photo: WLP / Wikimedia Commons, CC BY-SA 3.0" },
   },
   babcock: {
-    name: 'Braves Field',
-    fact: "The Boston Braves played here from 1915 to 1952. It's now BU's Nickerson Field.",
-    photo: { src: '/art/landmarks/babcock.jpg', credit: "Photo: Unknown author / Wikimedia Commons, CC BY 2.0" },
+    name: 'Nickerson Field',
+    fact: "BU's stadium today, but from 1915 to 1952 it was Braves Field, home of the Boston Braves.",
+    photo: { src: '/art/landmarks/babcock.jpg', credit: 'Photo: Greenstrat / Wikimedia Commons, public domain' },
   },
   packards: {
     name: "Packard's Corner",

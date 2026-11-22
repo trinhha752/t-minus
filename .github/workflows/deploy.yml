@@ -37,10 +37,6 @@ jobs:
         with:
           node-version: 22
 
-      # Fails fast with a clear message if the token is missing or can't see the tminus team
-      - name: Check the Vercel token
-        run: npx --yes vercel@66.6.0 whoami --token="${{ secrets.VERCEL_TOKEN }}"
-
       # Plain `vercel --prod` (not `vercel deploy`): the repo has a deploy/ folder the CLI confuses with the command
       - name: Deploy to production
         run: npx --yes vercel@66.6.0 --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"

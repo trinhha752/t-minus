@@ -83,6 +83,17 @@ async function main() {
   r = await call("GET", "/api/boss/persona?line=Purple");
   check("persona: unknown line is a 400", r.status === 400);
 
+  // The Conductor (Mastra agent on Gemini): an answer, or a clean 503 if Gemini is busy
+  r = await call("POST", "/api/chat", { stationId: "harvard", message: "When is the next train here?" });
+  check("conductor: answers with live tools (or 503 if Gemini is busy)",
+    (r.status === 200 && r.body.data.text.length > 0 && Array.isArray(r.body.data.toolsUsed)) || r.status === 503,
+    r.status === 200 ? `tools: ${r.body.data.toolsUsed.join(", ")}` : "Gemini busy");
+  r = await call("POST", "/api/chat", { stationId: "harvard" });
+  check("conductor: missing message is a 400", r.status === 400);
+  r = await call("POST", "/api/plan-ride", { stationId: "harvard" });
+  check("plan-ride workflow: a plan", r.body.ok && typeof r.body.data.narration === "string" && ["low", "medium", "high"].includes(r.body.data.delayRisk),
+    r.body.ok ? `go to ${r.body.data.goTo}, risk ${r.body.data.delayRisk}` : r.body.error);
+
   // Leaderboard
   r = await call("GET", "/api/leaderboard?scope=line");
   check("leaderboard: four teams ranked", r.body.ok && r.body.data.rows.length === 4 && r.body.data.rows[0].rank === 1,

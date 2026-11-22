@@ -228,6 +228,22 @@ curl "localhost:3000/api/trivia?line=Red"                     # Delay Boss quest
 
 Still mock (the shape is final, the data is not): `/api/chat`.
 
+### Mastra: The Conductor
+
+An AI guide in the game ("💬 Ask the Conductor" on the map), built with **Mastra** (`mastra/`):
+- **Agent** (`mastra/agents/conductor.ts`): runs on Gemini (`gemini-3.1-flash-lite`, falling back to `gemini-3.6-flash`), and decides which **tools** to call:
+  - `get-next-trains` (live MBTA)
+  - `get-line-delays` (Tiger Data continuous aggregates)
+  - `get-delay-boss`
+  - `get-rider-progress` (stamps, End Bosses, next stop each direction, where to switch lines)
+  - `get-station-info` (story, fact, mini-game, photo quest)
+
+  It never invents a train time or delay.
+- **Memory:** message history plus **working memory** (home station, favorite line, goal), per rider. It's stored in **Tiger Data** (`mastra` schema, via `@mastra/pg` on the app's pool), so it remembers you across visits.
+- **Workflow** (`mastra/workflows/plan-ride.ts`): **gather** (trains, delays, boss and progress in parallel) → **decide** (rule-based next stop, train, delay risk) → **narrate** (the Conductor says it in character). The "Plan my ride" button runs it.
+- `POST /api/chat { stationId, message }` returns the answer plus `toolsUsed`; the UI shows them as chips. `POST /api/plan-ride { stationId }` runs the workflow.
+- Try it from the terminal: `npm run conductor -- "Should I wait for the next train?" bucentral`.
+
 ### Gemini
 
 - **Photo quests:** Gemini Vision checks every photo (see "World: photo quests").

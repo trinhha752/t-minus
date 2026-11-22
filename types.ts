@@ -356,4 +356,17 @@ export interface ChatReply {
   characterName: string;
   text: string;
   questGranted: string | null;
+  /** Tools the Conductor (a Mastra agent) called for this answer, e.g. ["get-next-trains"]. */
+  toolsUsed: string[];
+}
+
+/** POST /api/plan-ride { stationId } -> the plan-ride Mastra workflow's result. */
+export interface RidePlan {
+  goTo: string | null;
+  takeTrainToward: string | null;
+  minutesUntilTrain: number | null;
+  delayRisk: "low" | "medium" | "high";
+  fightBoss: boolean;
+  reasons: string[];
+  narration: string;
 }

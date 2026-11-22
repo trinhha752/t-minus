@@ -15,6 +15,7 @@ import { Swords, TriangleAlert } from 'lucide-react'
 import { StationCard } from '@/components/cards/StationCard'
 import { DelayBoss, type LiveDelayBoss } from './DelayBoss'
 import { DelayChart } from '@/components/game/DelayChart'
+import { ConductorChat } from '@/components/game/ConductorChat'
 import { DelayGame, type DelayGameKind } from './DelayGames'
 import { LineBoss } from './LineBoss'
 import { loadoutStats } from './items'
@@ -157,6 +158,7 @@ function MapLayer() {
   const router = useRouter()
   const { played, streak, gold, startEndBoss, newRider } = useRun()
   const here = useHere()
+  const [conductorOpen, setConductorOpen] = useState(false)
   const whereNext = useWhereNext(here.id, played)
   return (
     <>
@@ -175,6 +177,15 @@ function MapLayer() {
         onSelect={(id) => router.push(`/station/${id}`)}
       />
       {DEMO_MODE && <DemoControls here={here.id} onNewRider={() => void newRider()} />}
+      {/* The Conductor: a Mastra agent on Gemini that checks live trains and Tiger Data for you */}
+      <button
+        type="button"
+        onClick={() => setConductorOpen(true)}
+        className="absolute right-4 top-[318px] z-20 flex items-center gap-1.5 border-2 border-ink bg-[#1B1F24] px-2.5 py-1.5 font-pixel text-[13px] font-bold text-[#FFD23F] shadow-[3px_3px_0_rgba(27,31,36,0.85)] active:translate-x-px active:translate-y-px active:shadow-none"
+      >
+        💬 Ask the Conductor
+      </button>
+      {conductorOpen && <ConductorChat stationId={here.id} onClose={() => setConductorOpen(false)} />}
       <StatusBar />
       <BottomNav tab="map" onChange={(t) => router.push(TAB_HREF[t])} />
     </>

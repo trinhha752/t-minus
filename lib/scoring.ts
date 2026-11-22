@@ -11,7 +11,8 @@ export const POINTS = {
   bossDefeatedBonus: 100,
   /** First clear of a station's mini-game each day. Replays score nothing. */
   minigameClear: 25,
-  finalBossDefeated: 200,
+  /** Matches END_BOSS.winGold in components/run/stats.ts, what the win screen shows. */
+  finalBossDefeated: 2500,
 } as const;
 
 /* ---------- arrival guess ---------- */

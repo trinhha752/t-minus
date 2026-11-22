@@ -133,7 +133,7 @@ export default function PhotoQuest({
 
   const verify = async (dataUrl: string) => {
     let passed = true;
-    let why = "verified";
+    let why = "couldn't check (offline)";
     try {
       const res = await fetch("/api/photo-quest/verify", {
         method: "POST",

@@ -18,6 +18,7 @@ import { DelayGame, type DelayGameKind } from './DelayGames'
 import { LineBoss } from './LineBoss'
 import { loadoutStats } from './items'
 import { LINES } from './stations'
+import { END_BOSS } from './stats'
 import { MapScreen } from './MapScreen'
 import { ResultsScreen } from './ResultsScreen'
 import { useRun } from './RunProvider'
@@ -247,7 +248,11 @@ export function MapView() {
 
 export function EndBossView() {
   const router = useRouter()
-  const { runId, endBossHp, addGold, equipped, owned } = useRun()
+  const { runId, endBossHp, equipped, owned, refresh } = useRun()
+  const here = useHere()
+  // Your line's End Boss (chapter ids are the line ids: red, green, orange).
+  const line = stationById(here.id).lines[0]
+  const demo = endBossHp < END_BOSS.hp
   const loadout = loadoutStats(equipped, owned)
   const stats = {
     hearts: loadout.hearts,
@@ -262,11 +267,21 @@ export function EndBossView() {
       {/* Keyed on runId: each challenge is a fresh fight even though Next keeps this route alive. */}
       <LineBoss
         key={runId}
-        line="red"
+        line={line}
         maxHp={endBossHp}
         stats={stats}
-        onExit={(earned) => {
-          addGold(earned)
+        onResult={(r) => {
+          // Saved on the server: a first win marks the line's boss defeated (+2500, badge).
+          void fetch('/api/final-boss/result', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ chapterId: line, won: r.won, demo }),
+          })
+            .catch(() => null)
+            .then(refresh)
+        }}
+        onExit={() => {
+          void refresh()
           router.push('/')
         }}
       />

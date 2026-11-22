@@ -10,7 +10,7 @@
 //
 // Hands off to /station/[id]/play (the team's game) at the end.
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Camera, MapPin, TrainFront } from "lucide-react";
 import BrakeGame from "@/components/game/BrakeGame";
@@ -54,6 +54,20 @@ export function ArriveView({ id }: { id: string }) {
   const [saved, setSaved] = useState("");
   const [startedAt, setStartedAt] = useState(0);
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
+
+  // Next keeps visited routes alive (hidden) and their state with them, so without this,
+  // coming back to a station (or after "New rider") would reopen the last visit's final
+  // screen. The cleanup runs when this screen is hidden: every visit starts at check-in.
+  useLayoutEffect(
+    () => () => {
+      setStep("arrive");
+      setError("");
+      setBrake(null);
+      setPhoto(null);
+      setSaved("");
+    },
+    []
+  );
 
   const demoHere = useDemoStation() === id; // the map's demo button put you here
   const atThisStation = here.slug === id && here.inRange;

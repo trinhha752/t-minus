@@ -360,6 +360,56 @@ export async function answerFinalBoss(
   });
 }
 
+/**
+ * The result of an End Boss fight played in the browser (the parry-and-attack fight in
+ * components/run/LineBoss.tsx can't be checked move by move on the server). A win marks the
+ * chapter's boss defeated and pays out once; later wins and losses are just recorded.
+ * Needs the chapter unlocked, except demo fights in dev / demo mode.
+ */
+export async function recordFinalBossResult(
+  userId: string,
+  chapterId: string,
+  won: boolean,
+  demo = false
+): Promise<{ defeated: boolean; firstWin: boolean; pointsEarned: number }> {
+  const chapter = chapterById(chapterId);
+  if (!chapter) throw new GameRuleError("unknown chapter");
+  const demoBypass = demo && (process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_DEMO_MODE === "1");
+  const status = await chapterStatus(userId);
+  if (!demoBypass && !status.get(chapterId)?.unlocked) {
+    throw new GameRuleError("clear every station in this chapter first");
+  }
+
+  return tx(async (c) => {
+    // Lock this rider's fights for the chapter so two results can't both pay out.
+    const { rows } = await c.query<{ defeated: boolean }>(
+      `SELECT defeated FROM final_boss_fights WHERE user_id = $1 AND chapter_id = $2 FOR UPDATE`,
+      [userId, chapterId]
+    );
+    const already = rows.some((r) => r.defeated);
+    // Close any open trivia fight for this chapter, then record this one as finished.
+    await c.query(
+      `UPDATE final_boss_fights SET ended_at = now() WHERE user_id = $1 AND chapter_id = $2 AND ended_at IS NULL`,
+      [userId, chapterId]
+    );
+    const hp = demo ? FINAL_BOSS_DEMO_HP : FINAL_BOSS_HP;
+    await c.query(
+      `INSERT INTO final_boss_fights (user_id, chapter_id, hp_total, hp_remaining, defeated, ended_at)
+       VALUES ($1, $2, $3, $4, $5, now())`,
+      [userId, chapterId, hp, won ? 0 : hp, won]
+    );
+    const firstWin = won && !already;
+    if (firstWin) {
+      await c.query(`UPDATE users SET points = points + $2 WHERE id = $1`, [userId, POINTS.finalBossDefeated]);
+      await c.query(
+        `INSERT INTO badges (user_id, type, label) VALUES ($1, 'boss', $2) ON CONFLICT DO NOTHING`,
+        [userId, `Defeated ${chapter.bossName}`]
+      );
+    }
+    return { defeated: won || already, firstWin, pointsEarned: firstWin ? POINTS.finalBossDefeated : 0 };
+  });
+}
+
 /** Out of hearts, or walked away. Ends the fight without a win; the next start is a fresh boss. */
 export async function forfeitFinalBoss(userId: string, fightId: string): Promise<FinalBossFight> {
   const [row] = await q<FightRow>(

@@ -76,6 +76,13 @@ async function main() {
   r = await call("GET", "/api/delays?line=Purple");
   check("delays: unknown line is a 400", r.status === 400);
 
+  // Gemini names the live Delay Boss (200 with a name, or 404 if no boss / Gemini busy)
+  r = await call("GET", "/api/boss/persona?line=Orange");
+  check("persona: a named boss or a clean 404", (r.status === 200 && typeof r.body.data?.name === "string") || r.status === 404,
+    r.status === 200 ? `"${r.body.data.name}": ${r.body.data.taunt}` : "no boss or Gemini busy");
+  r = await call("GET", "/api/boss/persona?line=Purple");
+  check("persona: unknown line is a 400", r.status === 400);
+
   // Leaderboard
   r = await call("GET", "/api/leaderboard?scope=line");
   check("leaderboard: four teams ranked", r.body.ok && r.body.data.rows.length === 4 && r.body.data.rows[0].rank === 1,

@@ -371,6 +371,36 @@ function useLiveDelayBoss(stationId: string, ready: boolean) {
 
 const DELAY_FIGHTS: ('trivia' | DelayGameKind)[] = ['trivia', 'signal', 'dodge']
 
+/**
+ * Gemini's name and taunt for the live Delay Boss on this line (GET /api/boss/persona).
+ * In demo mode, "Simulate delay" makes sure a server boss exists first, as the quiz fight does.
+ */
+function useBossPersona(line: 'Red' | 'Green' | 'Orange', ready: boolean) {
+  const [persona, setPersona] = useState<{ name: string; taunt: string } | null>(null)
+  const [done, setDone] = useState(false)
+  useEffect(() => {
+    if (!ready) return
+    let alive = true
+    void (async () => {
+      if (DEMO_MODE) {
+        await fetch('/api/boss/simulate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ line }),
+        }).catch(() => null)
+      }
+      const r = await fetch(`/api/boss/persona?line=${line}`).then((x) => x.json()).catch(() => null)
+      if (!alive) return
+      if (r?.ok) setPersona({ name: r.data.name, taunt: r.data.taunt })
+      setDone(true)
+    })()
+    return () => {
+      alive = false
+    }
+  }, [line, ready])
+  return { persona, done }
+}
+
 export function BossView() {
   const router = useRouter()
   const { runId, bossIndex, gold, played, streak, refresh, addGold } = useRun()
@@ -379,11 +409,14 @@ export function BossView() {
   const kind = DELAY_FIGHTS[(runId + bossIndex) % DELAY_FIGHTS.length]
   // Only the trivia fight uses the shared server boss (and starts a simulated one in demo mode)
   const { live, status } = useLiveDelayBoss(here.id, here.settled && kind === 'trivia')
+  const { persona, done: personaDone } = useBossPersona(TEAM_OF[stationById(here.id).lines[0]], here.settled)
+  if (!personaDone) return <div className="absolute inset-0 tex-leather" />
   if (kind !== 'trivia') {
     return (
       <>
         <DelayGame
           key={runId}
+          persona={persona}
           kind={kind}
           bossIndex={bossIndex}
           line={stationById(here.id).lines[0]}
@@ -402,7 +435,7 @@ export function BossView() {
       {/* Keyed on runId: each delay is a fresh fight even though Next keeps this route alive. */}
       <DelayBoss
         key={`${runId}-${live ? 'live' : 'local'}`}
-        live={live ?? undefined}
+        live={live ? { ...live, name: persona?.name, taunt: persona?.taunt } : undefined}
         insight={<DelayChart line={TEAM_OF[stationById(here.id).lines[0]]} />}
         bossIndex={bossIndex}
         gold={gold}

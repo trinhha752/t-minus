@@ -118,6 +118,11 @@ CREATE TABLE IF NOT EXISTS boss_events (
   defeated      BOOLEAN NOT NULL DEFAULT false
 );
 
+-- Gemini names each Delay Boss once, from the real delay numbers (lib/bossPersona.ts).
+-- Stored on the boss so everyone on the line fights the same named boss.
+ALTER TABLE boss_events ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE boss_events ADD COLUMN IF NOT EXISTS taunt TEXT;
+
 -- At most one live boss per line.
 CREATE UNIQUE INDEX IF NOT EXISTS one_live_boss_per_line
   ON boss_events (line) WHERE ended_at IS NULL;

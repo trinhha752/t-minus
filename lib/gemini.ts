@@ -130,3 +130,46 @@ async function askModel(
     clearTimeout(timer);
   }
 }
+
+/**
+ * A text-only Gemini request that answers with JSON. Same models, order and time
+ * budget as the photo check. Returns null if no model answered (caller falls back).
+ */
+export async function askGeminiJson(system: string, prompt: string): Promise<Record<string, unknown> | null> {
+  const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!key) return null;
+  const started = Date.now();
+  for (const [i, model] of MODELS.entries()) {
+    const left = TIMEOUT_MS - (Date.now() - started);
+    if (left <= 300) break;
+    const timeoutMs = i === MODELS.length - 1 ? left : Math.min(PER_MODEL_MS, left);
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), timeoutMs);
+    try {
+      const res = await fetch(ENDPOINT(model), {
+        method: "POST",
+        signal: abort.signal,
+        headers: { "content-type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json", temperature: 0.9 },
+        }),
+      });
+      if (!res.ok) continue;
+      const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+      const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+      const json = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+      if (json && typeof json === "object") {
+        console.info(`[gemini] ${model} answered`);
+        return json as Record<string, unknown>;
+      }
+    } catch {
+      /* timeout or bad JSON: try the next model */
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  console.warn("[gemini] no model answered");
+  return null;
+}

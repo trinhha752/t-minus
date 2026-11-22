@@ -45,6 +45,9 @@ const MAX_HP = MINI_BOSS.hp
  * the damage lands on the HP everyone on the line shares.
  */
 export type LiveDelayBoss = {
+  /** Written by Gemini for this delay (GET /api/boss/persona); falls back to BOSSES. */
+  name?: string
+  taunt?: string
   lineName: string
   /** e.g. "+6 min" */
   delayLabel: string
@@ -122,7 +125,8 @@ export function DelayBoss({
   /** Leave the fight; `goldEarned` is 0 when the player bails out. */
   onExit: (goldEarned: number) => void
 }) {
-  const boss = BOSSES[bossIndex % BOSSES.length]
+  const fallbackBoss = BOSSES[bossIndex % BOSSES.length]
+  const boss = live?.name ? { name: live.name, taunt: live.taunt ?? fallbackBoss.taunt } : fallbackBoss
   const [s, setS] = useState<Snap>(() =>
     live && !preview ? { ...base, hp: live.hpStart, ghost: live.hpStart } : PREVIEWS[preview ?? 'takeover'],
   )

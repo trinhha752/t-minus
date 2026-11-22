@@ -228,6 +228,11 @@ curl "localhost:3000/api/trivia?line=Red"                     # Delay Boss quest
 
 Still mock (the shape is final, the data is not): `/api/chat`.
 
+### Gemini
+
+- **Photo quests:** Gemini Vision checks every photo (see "World: photo quests").
+- **Boss names:** when a real delay spawns a Delay Boss, Gemini names it and writes its taunt from the actual numbers (late trains, share late, worst delay), e.g. "The Grand Orange Switchblade: Your commute stalls for 13 minutes while my shadow consumes the tracks". `GET /api/boss/persona?line=Orange` (`lib/bossPersona.ts`). It's written once and stored on the boss (`boss_events.name/taunt`), so everyone on the line fights the same boss and Gemini is called once per boss. If Gemini is busy, the screens keep their built-in names.
+
 ### Tiger Data
 
 - `prediction_snapshots` is a **hypertable**: every MBTA prediction, ~1,300 rows every 15 s (2M+ so far), with **columnstore compression** (about 89% smaller: 100 MB → 11 MB).

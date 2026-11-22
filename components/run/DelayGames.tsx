@@ -37,13 +37,16 @@ export function DelayGame({
   bossIndex,
   line,
   onExit,
+  persona,
 }: {
   kind: DelayGameKind
   bossIndex: number
   line: LineId
   onExit: (gold: number) => void
+  /** Name and taunt Gemini wrote for this delay; falls back to BOSSES. */
+  persona?: { name: string; taunt: string } | null
 }) {
-  const boss = BOSSES[bossIndex % BOSSES.length]
+  const boss = persona ?? BOSSES[bossIndex % BOSSES.length]
   const props = { boss, bossIndex, line, onExit }
   return kind === 'signal' ? <SignalRepair {...props} /> : <PlatformDodge {...props} />
 }

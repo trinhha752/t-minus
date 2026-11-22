@@ -30,8 +30,8 @@ export interface PhotoVerdict {
 }
 
 const OPEN = (why: string): PhotoVerdict => {
-  console.warn(`[photo-quest] failing open: ${why}`);
-  return { passed: true, reason: "verified", checked: false };
+  console.warn(`[photo-quest] couldn't check, counting it: ${why}`);
+  return { passed: true, reason: "couldn't check (checker busy)", checked: false };
 };
 
 /** Does this JPEG plausibly show `target`? */
@@ -39,11 +39,15 @@ export async function verifyPhoto(target: string, jpegBase64: string): Promise<P
   const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!key) return OPEN("no GOOGLE_GENERATIVE_AI_API_KEY");
 
+  // Strict but fair: the target must really be there. Failing costs the player
+  // nothing (free reshoots), while a wrong pass makes the quest meaningless.
   const system =
     `You are checking a photo for a game. The player was asked to photograph: ${target}. ` +
-    `Answer ONLY with JSON {"passed":boolean,"reason":"<8 words max>"}. ` +
-    `Be generous — if it plausibly shows the target, pass. ` +
-    `Only fail if clearly unrelated or nothing is visible.`;
+    `Pass ONLY if ${target} is clearly visible in the photo: you could point to it. ` +
+    `It may be in the background or partly cropped, and a drawing or sign of it counts. ` +
+    `A photo of a person, a face, a selfie, a hand or a random object does NOT count unless ${target} is also clearly visible. ` +
+    `If you are unsure, fail: the player can simply retake it. ` +
+    `Answer ONLY with JSON {"passed":boolean,"reason":"<8 words max>"}.`;
 
   const started = Date.now();
   const reasons: string[] = [];
@@ -52,7 +56,11 @@ export async function verifyPhoto(target: string, jpegBase64: string): Promise<P
     if (left <= 300) break;
     const last = i === MODELS.length - 1;
     const result = await askModel(model, key, system, target, jpegBase64, last ? left : Math.min(PER_MODEL_MS, left));
-    if (result.ok) return result.verdict;
+    if (result.ok) {
+      // Verdicts only, never the image.
+      console.info(`[photo-quest] ${model}: ${result.verdict.passed ? "PASS" : "FAIL"} "${target}" (${result.verdict.reason})`);
+      return result.verdict;
+    }
     reasons.push(`${model}: ${result.why}`);
   }
   return OPEN(reasons.join("; ") || "no time left");

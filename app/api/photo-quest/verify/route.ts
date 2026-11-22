@@ -26,5 +26,6 @@ export async function POST(request: Request) {
   if (!/^[A-Za-z0-9+/=]+$/.test(base64.slice(0, 200))) return fail("imageBase64 is not base64");
 
   const verdict = await verifyPhoto(quest.target, base64);
-  return ok({ passed: verdict.passed, reason: verdict.reason });
+  // checked=false: Gemini couldn't be reached, so it counted without a check.
+  return ok({ passed: verdict.passed, reason: verdict.reason, checked: verdict.checked });
 }

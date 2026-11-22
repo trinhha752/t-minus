@@ -44,14 +44,19 @@ npm run dev                  # http://localhost:3000
 Map: "YOU ARE HERE · BU Central"  (your phone's real location)
   └─ Check in ─▶ Arrive: brake your train in ─▶ photo quest ─▶ STAMPED (+25, saved on the server)
                    └─▶ Play the station's game (Landmark Match, or Harvard's own) ─▶ results
-  └─ back on the map, the card says "BU Central stamped ✓ · ride to Amory Street"
-  └─ ride there (or "Try the game here (demo)") ─▶ Arrive ─▶ ... ─▶ next stamp
-  └─ every station on a line stamped ─▶ card says "line complete! · End Boss" ─▶ Fight
+  └─ back on the map, the card shows both directions, like the platform sign:
+        📍 BU Central ✓ done
+        ▸ Amory Street   1 stop toward Boston College · train in 2 min
+        ◂ BU East        1 stop toward Government Center · train in 6 min
+  └─ ride either way (or "Try the game here (demo)") ─▶ Arrive ─▶ ... ─▶ next stamp
+  └─ one direction finished ─▶ "Switch to the Red Line at Park Street (9 left)"
+  └─ every station on a line stamped ─▶ "Green Line complete!" ─▶ Fight its End Boss
   └─ a real delay on your line ─▶ Delay Boss (everyone on the line fights it together)
 ```
 
 - **Progress is saved on the server.** Stamped stations, gold (points) and streak come from `/api/progress` and `/api/me`, so a refresh keeps them. The line chips at the top count real stamps.
-- **"Next" is the next unstamped station on your line** (`components/game/loop.ts`), wrapping around to ones you skipped.
+- **Where next** (`components/game/loop.ts`): the nearest unstamped stop in **each direction** along your track (a Green branch stop's track is the trunk plus its branch; at Kenmore, outbound looks down the B, C and D branches). Live train times come from `/api/predictions`; MBTA direction 0 is "▸" (outbound/southbound), 1 is "◂".
+- **Switching lines** happens at the transfer stations: Park Street (Red–Green), Downtown Crossing (Red–Orange), and North Station and Haymarket (Green–Orange). When a direction or the whole line is done, the card points to the nearest transfer to a line with stations left.
 - **Start over:** tap **↺ New rider (demo)** on the map (dev, or `NEXT_PUBLIC_DEMO_MODE=1`). It gives you a fresh rider with nothing stamped.
 - Playing a station again the same day is allowed but earns nothing ("Already stamped today").
 - Still local only: gold from the boss fights (`addGold`), until the bosses are wired to the server.

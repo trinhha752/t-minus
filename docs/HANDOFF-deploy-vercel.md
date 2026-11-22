@@ -9,9 +9,13 @@ site, the photo quest and location check-in can't be shown on a phone, and judge
 ## Done = this works
 On a **real phone**, open `https://<your-domain>`:
 1. The pixel map loads (no endless reloading).
-2. Allow **location**: the map says "You're at ..." (or use the **DEMO · stand at** panel).
+2. Allow **location**: the map says "You're at ..." (or tap **🛠 Demo** → pick a station under "Stand at").
 3. Check in → brake → **Photo quest** → allow **camera** → photo of a sign passes, a selfie fails.
-4. "Simulate delay" shows a Delay Boss with a Gemini name and **THE REAL DELAY** chart.
+4. **🛠 Demo → Simulate delay** shows a Delay Boss with a Gemini name and **THE REAL DELAY** chart.
+5. **💬 Conductor → Plan my ride** answers in a few seconds, with tool chips under it (tap one to see the data).
+   Then ask "When's my next train?". This is the Mastra agent: it must work on the live site too.
+
+**Deploy `main`.** Trinh's features (Tiger Data chart, Gemini boss names, the Conductor) are merged into `main`.
 
 "It deployed" is not done. The phone camera is the pass condition.
 
@@ -30,7 +34,7 @@ On a **real phone**, open `https://<your-domain>`:
    | `DATABASE_URL` | Tiger Data connection string (same as `.env.local`) |
    | `MBTA_API_KEY` | same as `.env.local` |
    | `GOOGLE_GENERATIVE_AI_API_KEY` | same as `.env.local` |
-   | `NEXT_PUBLIC_DEMO_MODE` | `1` (shows the DEMO panel, Simulate delay, New rider; allows teleport check-in) |
+   | `NEXT_PUBLIC_DEMO_MODE` | `1` (shows the **🛠 Demo** menu: stand at a station, Simulate delay, Final boss, New rider; allows teleport check-in) |
    | `GEMINI_MODEL` | leave unset (defaults to `gemini-3.1-flash-lite,gemini-3.6-flash`) |
    | `PHOTO_FAIL_OPEN` | leave unset (busy checker = "check again", not an auto-pass) |
 
@@ -47,6 +51,7 @@ On a **real phone**, open `https://<your-domain>`:
 - **The poller does NOT run on Vercel.** It's a long-running loop (`npm run poll`: MBTA → Tiger Data every 15 s, spawns and retires Delay Bosses). Vercel only runs request handlers. **Keep it running on one laptop** (`npm run poll`, Trinh's or a teammate's with `.env.local`). Only ONE poller at a time. If nobody runs it, the game still works, but delays/bosses stop updating.
 - **Offline seed fallback** (`lib/mbta.ts` reads `public/seed/mbta-fallback.json` with `fs`) may not be readable inside Vercel functions. It only matters if the MBTA API is down; the live API works.
 - **DB connections:** `lib/db.ts` uses a pool of 8 per function instance. Fine for a demo. If Tiger Data reports too many connections, lower `max` to 3.
+- **The Conductor** (`/api/chat`, `/api/plan-ride`) can take 5–15 s (several tool calls to Gemini). The routes set `maxDuration = 60`, which Vercel allows on every plan. It uses the same `GOOGLE_GENERATIVE_AI_API_KEY` and stores its memory in Tiger Data (`mastra` schema, already created); nothing extra to configure.
 - **Photo checks** take ~1–2 s (Gemini); the budget is 8 s, under Vercel's default function limit. On the free Gemini tier, rapid photos can return "checker busy": wait a few seconds or enable billing on the key's Google project.
 - **Local dev:** never run `next build` while `npm run dev` is running (they share `.next` → stale CSS / endless reloads). Fix: stop dev, `rm -rf .next`, start again.
 - `next.config.ts` `allowedDevOrigins` is dev-only; it doesn't affect Vercel.

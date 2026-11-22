@@ -1,14 +1,17 @@
 'use client'
 
 // Run state shared across the map → station → game → results → boss routes.
-// Mock, in-memory only: it resets on refresh until we wire /api/me.
+// Played stations, gold (points) and streak come from the server (/api/progress
+// and /api/me), so they survive a refresh and match what the backend counts.
+// Boss-fight gold (addGold) is still local until the bosses are wired up.
 
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { BOSSES } from './DelayBoss'
 import { END_BOSS } from './stats'
-import { CURRENT_STATION, INITIAL_PLAYED } from './stations'
+import { CURRENT_STATION } from './stations'
 import type { GameResult } from './GameFrame'
 import { LOADOUT_SLOTS, itemById } from './items'
+import type { Chapter } from '@/types'
 
 type Run = {
   played: Set<string>
@@ -37,25 +40,64 @@ type Run = {
   unequip: (id: string) => void
   /** Buy a shop item with gold. Returns false when it's unaffordable or already owned. */
   buy: (id: string) => boolean
+  /** Re-read stamps, points and streak from the server (after a stamp, or a new rider). */
+  refresh: () => Promise<void>
+  /** Start over as a new rider (demo mode only). */
+  newRider: () => Promise<void>
 }
 
 const RunContext = createContext<Run | null>(null)
 
 export function RunProvider({ children }: { children: ReactNode }) {
-  const [played, setPlayed] = useState(() => new Set(INITIAL_PLAYED))
-  const [streak, setStreak] = useState(7)
-  const [gold, setGold] = useState(1250) // mock: gold from the 6 stations already played
+  const [played, setPlayed] = useState<Set<string>>(() => new Set())
+  const [streak, setStreak] = useState(0)
+  const [gold, setGold] = useState(0)
   const [result, setResult] = useState<GameResult | null>(null)
   const [runId, setRunId] = useState(0)
   const [bossIndex, setBossIndex] = useState(0)
 
   const startGame = () => setRunId((n) => n + 1)
 
+  const refresh = useCallback(async () => {
+    const [progress, me] = await Promise.all([
+      fetch('/api/progress').then((r) => r.json()).catch(() => null),
+      fetch('/api/me').then((r) => r.json()).catch(() => null),
+    ])
+    if (progress?.ok) {
+      const stamped = (progress.data.chapters as Chapter[]).flatMap((c) => c.stations.filter((s) => s.cleared).map((s) => s.slug))
+      setPlayed(new Set(stamped))
+    }
+    if (me?.ok) {
+      setGold(me.data.points)
+      setStreak(me.data.streak)
+    }
+  }, [])
+  useEffect(() => {
+    const t = setTimeout(refresh, 0)
+    return () => clearTimeout(t)
+  }, [refresh])
+
+  const newRider = useCallback(async () => {
+    await fetch('/api/session/reset', { method: 'POST' }).catch(() => null)
+    setResult(null)
+    await refresh()
+  }, [refresh])
+
+  /** Records a finished station game on the server (its best score), then re-syncs. */
   const finishGame = (r: GameResult, stationId = CURRENT_STATION) => {
     setResult(r)
-    setGold((g) => g + r.points)
-    setStreak(8) // first play today extends the streak
-    setPlayed((p) => new Set(p).add(stationId))
+    void fetch('/api/minigame/result', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        stationId,
+        score: r.score,
+        cleared: true,
+        durationMs: Math.max(3000, Math.round(r.secondsUsed * 1000)),
+      }),
+    })
+      .catch(() => null)
+      .then(refresh)
   }
 
   const startBoss = () => {
@@ -110,6 +152,8 @@ export function RunProvider({ children }: { children: ReactNode }) {
         equip,
         unequip,
         buy,
+        refresh,
+        newRider,
       }}
     >
       {children}

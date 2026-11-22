@@ -194,6 +194,7 @@ export async function getPredictions(stopId: string, limit = 5): Promise<Arrival
 
       return {
         id: r.id,
+        tripId,
         stopId,
         route,
         directionId: (num(r.attributes.direction_id) ?? 0) as 0 | 1,

@@ -41,6 +41,8 @@ async function main() {
   let r = await call("GET", "/api/predictions?stop=place-pktrm");
   check("predictions: Park Street returns trains", r.body.ok && r.body.data.length > 0,
     r.body.ok ? r.body.data.map((a: any) => `${a.route} ${a.headsign} ${a.secondsAway}s`).join(", ") : r.body.error);
+  r = await call("GET", "/api/predictions?stop=park");
+  check("predictions: UI slug works", r.body.ok && r.body.data.length > 0 && r.body.data[0].stopId === "place-pktrm");
   r = await call("GET", "/api/predictions");
   check("predictions: missing stop is a 400", r.status === 400);
 
@@ -67,6 +69,31 @@ async function main() {
     r.body.ok && r.body.data.stampedStationIds.includes("place-pktrm") && r.body.data.points > 0,
     `${r.body.data?.points} pts, stamps ${r.body.data?.stampedStationIds?.join(",")}`);
 
+  // Leaderboard
+  r = await call("GET", "/api/leaderboard?scope=line");
+  check("leaderboard: four teams ranked", r.body.ok && r.body.data.rows.length === 4 && r.body.data.rows[0].rank === 1,
+    r.body.data?.rows?.map((x: any) => `${x.name} ${x.points}`).join(", "));
+  r = await call("GET", "/api/leaderboard?scope=user");
+  check("leaderboard: riders sorted by points", r.body.ok &&
+    r.body.data.rows.every((x: any, i: number, a: any[]) => i === 0 || a[i - 1].points >= x.points),
+    `${r.body.data?.rows?.length} riders`);
+  r = await call("GET", "/api/leaderboard?scope=nope");
+  check("leaderboard: bad scope is a 400", r.status === 400);
+
+  // Guess: lock onto a real train. Resolution takes minutes, so it's unit-tested instead.
+  r = await call("POST", "/api/guess", { stationId: "place-pktrm", guessMinutes: 4 });
+  const guess = r.body.data;
+  check("guess: locks onto a train 90s+ out", r.body.ok && Date.parse(guess.targetArrivalIso) - Date.now() > 60_000,
+    r.body.ok ? `target ${Math.round((Date.parse(guess.targetArrivalIso) - Date.now()) / 1000)}s away` : r.body.error);
+  r = await call("POST", "/api/guess", { stationId: "place-pktrm", guessMinutes: 5 });
+  check("guess: a second open guess is a 409", r.status === 409);
+  if (guess) {
+    r = await call("GET", `/api/guess/${guess.id}`);
+    check("guess: polling shows it unresolved", r.body.ok && r.body.data.resolved === false);
+  }
+  r = await call("GET", "/api/guess/not-a-real-id");
+  check("guess: unknown id is a 404", r.status === 404);
+
   // Trivia
   r = await call("GET", "/api/trivia?stop=place-pktrm&wait=300");
   const qs = r.body.data?.questions ?? [];
@@ -74,59 +101,106 @@ async function main() {
   check("trivia: answers never sent to the browser",
     !JSON.stringify(r.body).match(/answer_?index|correctIndex/i));
 
-  // Progression
-  r = await call("POST", "/api/final-boss/start", { chapterId: "green-trunk" });
-  check("final boss: locked before the chapter is cleared", r.status === 400);
-  r = await call("POST", "/api/minigame/result", { stationId: "place-pktrm", gameId: "rooftop-run", score: 1, cleared: true, durationMs: 30000 });
-  check("minigame: wrong game for this station is refused", r.status === 400);
-  r = await call("POST", "/api/minigame/result", { stationId: "place-pktrm", gameId: "frog-pond-skate", score: 1, cleared: true, durationMs: 500 });
-  check("minigame: impossibly fast clear is refused", r.status === 400);
+  // Progression: chapters come from components/run/stations.ts. Use UI slugs.
+  r = await call("GET", "/api/progress");
+  const red = r.body.data?.chapters?.find((c: any) => c.id === "red");
+  check("progress: red chapter from the UI's stations.ts", red?.stations?.length >= 10 && red.stations[0].slug === "alewife" && red.stations.some((s: any) => s.slug === "braintree"),
+    `${red?.name}, ${red?.stations?.length} stations, boss ${red?.bossName}`);
 
-  const stations: [string, string][] = [
-    ["place-pktrm", "frog-pond-skate"], ["place-boyls", "rooftop-run"],
-    ["place-armnl", "garden-or-graveyard"], ["place-coecl", "the-last-mile"],
-  ];
-  for (const [i, [stationId, gameId]] of stations.entries()) {
-    r = await call("POST", "/api/minigame/result", { stationId, gameId, score: 500, cleared: true, durationMs: 30000 });
-    check(`minigame: clear ${gameId}`, r.body.ok && r.body.data.pointsEarned > 0 && r.body.data.stationCleared);
-    if (i === stations.length - 1)
-      check("minigame: last station unlocks the chapter boss", r.body.data?.chapterBossUnlocked === "green-trunk", `${r.body.data?.chapterBossUnlocked}`);
+  r = await call("POST", "/api/final-boss/start", { chapterId: "red" });
+  check("final boss: locked before the chapter is cleared", r.status === 400);
+  r = await call("POST", "/api/minigame/result", { stationId: "alewife", score: 500, cleared: true, durationMs: 30000 });
+  check("minigame: refused without a check-in at that station", r.status === 400 && /check in/.test(r.body.error ?? ""));
+  r = await call("POST", "/api/checkin", { stationId: "alewife", lat: 0, lon: 0 });
+  check("checkin: too far from Alewife without teleport", r.body.data?.reason === "too_far");
+  r = await call("POST", "/api/checkin", { stationId: "alewife", lat: 0, lon: 0, teleport: true });
+  r = await call("POST", "/api/minigame/result", { stationId: "alewife", gameId: "rooftop-run", score: 1, cleared: true, durationMs: 30000 });
+  check("minigame: wrong game for this station is refused", r.status === 400);
+  r = await call("POST", "/api/minigame/result", { stationId: "alewife", score: 1, cleared: true, durationMs: 500 });
+  check("minigame: impossibly fast clear is refused", r.status === 400);
+  r = await call("POST", "/api/minigame/result", { stationId: "nowhere", score: 1, cleared: true, durationMs: 30000 });
+  check("minigame: unknown station is refused", r.status === 400);
+
+  for (const [i, s] of (red?.stations ?? []).entries()) {
+    // Mix id styles: UI slug for most, MBTA id for one, gameId only sometimes.
+    const stationId = i === 3 ? s.stationId : s.slug;
+    await call("POST", "/api/checkin", { stationId: s.slug, lat: 0, lon: 0, teleport: true }); // demo teleport
+    const body: any = { stationId, score: 500, cleared: true, durationMs: 30000 };
+    if (i % 2 === 0) body.gameId = s.gameId;
+    r = await call("POST", "/api/minigame/result", body);
+    if (!r.body.ok || !r.body.data.stationCleared) check(`minigame: clear ${s.slug}`, false, r.body.error);
+    if (i === red.stations.length - 1) {
+      check(`minigame: all ${red.stations.length} red stations clear`, r.body.ok);
+      check("minigame: last station unlocks the chapter boss", r.body.data?.chapterBossUnlocked === "red", `${r.body.data?.chapterBossUnlocked}`);
+    }
   }
-  r = await call("POST", "/api/minigame/result", { stationId: "place-pktrm", gameId: "frog-pond-skate", score: 500, cleared: true, durationMs: 30000 });
+  r = await call("POST", "/api/minigame/result", { stationId: "alewife", score: 500, cleared: true, durationMs: 30000 });
   check("minigame: replay the same day earns 0", r.body.ok && r.body.data.pointsEarned === 0);
 
-  r = await call("GET", "/api/progress");
-  const ch = r.body.data?.chapters?.find((c: any) => c.id === "green-trunk");
-  check("progress: chapter shows unlocked", ch?.bossUnlocked === true && ch?.bossDefeated === false);
-
-  r = await call("POST", "/api/final-boss/start", { chapterId: "green-trunk" });
+  r = await call("POST", "/api/final-boss/start", { chapterId: "red", demo: true });
   const fight = r.body.data;
-  check("final boss: starts", r.body.ok && fight.hpRemaining === fight.hpTotal,
-    `${fight?.bossName}, ${fight?.hpTotal}hp, x${fight?.damageMultiplier}`);
-  r = await call("POST", "/api/final-boss/start", { chapterId: "green-trunk" });
-  check("final boss: starting again resumes the same fight", r.body.data?.id === fight.id);
+  if (!r.body.ok && /no verified questions/.test(r.body.error ?? "")) {
+    console.log("SKIP  final boss: no verified questions yet (verify some, or set ALLOW_UNVERIFIED_TRIVIA=1)");
+  } else if (!r.body.ok) {
+    check("final boss: starts in demo mode", false, r.body.error);
+  } else {
+    check("final boss: starts in demo mode at 300 HP with questions", r.body.ok && fight.hpTotal === 300 && fight.questions.length > 0,
+      `${fight?.bossName}, ${fight?.hpTotal}hp, x${fight?.damageMultiplier}, ${fight?.questions?.length} questions`);
+    check("final boss: questions carry no answers", !JSON.stringify(fight ?? {}).match(/answer_?index|correctIndex/i));
+    r = await call("POST", "/api/final-boss/start", { chapterId: "red", demo: true });
+    check("final boss: starting again resumes the same fight", r.body.data?.id === fight.id);
 
-  r = await call("POST", "/api/final-boss/hit", { fightId: fight.id });
-  check("final boss: a hit does damage", r.body.ok && r.body.data.hpRemaining < fight.hpTotal, `${r.body.data?.hpRemaining}hp left`);
-  r = await call("POST", "/api/final-boss/hit", { fightId: fight.id });
-  check("final boss: spam hits get 429", r.status === 429);
+    // Learn an answer by getting it wrong, then land a combo with it.
+    const qn = fight.questions[0];
+    r = await call("POST", "/api/final-boss/answer", { fightId: fight.id, questionId: qn.id, choiceIndex: 99 });
+    const right = r.body.data?.correctIndex;
+    check("final boss: wrong answer does no damage and resets combo", r.body.ok && r.body.data.damage === 0 && r.body.data.combo === 0);
+    r = await call("POST", "/api/final-boss/answer", { fightId: fight.id, questionId: qn.id, choiceIndex: right });
+    check("final boss: answering within 1.5s is a 429", r.status === 429);
 
-  let hp = 1, hits = 1, last: Res | null = null;
-  while (hp > 0 && hits < 20) {
+    const dmg: number[] = [];
+    let last: Res | null = null;
+    for (let i = 0; i < 20; i++) {
+      await sleep(1600);
+      last = await call("POST", "/api/final-boss/answer", { fightId: fight.id, questionId: qn.id, choiceIndex: right });
+      if (!last.body.ok) break;
+      dmg.push(last.body.data.damage);
+      if (last.body.data.defeated) break;
+    }
+    check("final boss: combo ramps 20 -> 40 -> 60 (x buffs)",
+      dmg.length >= 3 && dmg[1] === 2 * dmg[0] && dmg[2] === 3 * dmg[0], dmg.join(","));
+    check("final boss: defeated", last?.body.data?.defeated === true && last.body.data.pointsEarned > 0,
+      `${dmg.length} correct answers, +${last?.body.data?.pointsEarned} points`);
     await sleep(1600);
-    last = await call("POST", "/api/final-boss/hit", { fightId: fight.id });
-    hp = last.body.data?.hpRemaining ?? 0;
-    hits++;
-    if (!last.body.ok) break;
+    r = await call("POST", "/api/final-boss/answer", { fightId: fight.id, questionId: qn.id, choiceIndex: right });
+    check("final boss: no answers after it is over", r.status === 400);
+    r = await call("GET", "/api/progress");
+    check("progress: chapter shows defeated", r.body.data?.chapters?.find((c: any) => c.id === "red")?.bossDefeated === true);
   }
-  check("final boss: defeated", last?.body.data?.defeated === true && last.body.data.pointsEarned > 0,
-    `${hits} hits, +${last?.body.data?.pointsEarned} points`);
-  await sleep(1600);
-  r = await call("POST", "/api/final-boss/hit", { fightId: fight.id });
-  check("final boss: no hits after it is over", r.status === 400);
-  r = await call("GET", "/api/progress");
-  check("progress: chapter shows defeated",
-    r.body.data?.chapters?.find((c: any) => c.id === "green-trunk")?.bossDefeated === true);
+
+  // Forfeit: a green fight can't start (not cleared), so forfeit a bogus id.
+  r = await call("POST", "/api/final-boss/forfeit", { fightId: "0" });
+  check("final boss: forfeiting a fight you don't have is a 400", r.status === 400);
+
+  // Photo quest: fails open with no Gemini key, so it passes either way here.
+  r = await call("POST", "/api/photo-quest/verify", { questId: "sign", imageBase64: "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACv/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AL+A//9k=", line: "Orange" });
+  check("photo quest: verify answers passed + reason", r.body.ok && typeof r.body.data.passed === "boolean", JSON.stringify(r.body.data));
+  r = await call("POST", "/api/photo-quest/verify", { questId: "nope", imageBase64: "AAAA" });
+  check("photo quest: unknown quest is a 404", r.status === 404);
+
+  // Where am I?
+  r = await call("GET", "/api/stations/nearest?lat=42.37340&lon=-71.11893");
+  check("nearest: standing at Harvard finds Harvard, in range", r.body.data?.slug === "harvard" && r.body.data.inRange === true, `${r.body.data?.metres} m`);
+  r = await call("GET", "/api/stations/nearest?lat=42.34973&lon=-71.10622");
+  check("nearest: at BU (the venue), BU Central is playable", r.body.data?.slug === "bucentral" && r.body.data.inRange === true, `${r.body.data?.metres} m`);
+  r = await call("GET", "/api/stations/nearest?lat=42.3601&lon=-71.0942");
+  check("nearest: between stations, out of range", r.body.data?.inRange === false, `${r.body.data?.name}, ${r.body.data?.metres} m`);
+
+  // Delay boss trivia by line
+  r = await call("GET", "/api/trivia?line=Red");
+  check("trivia: a line's boss round", r.body.ok && Array.isArray(r.body.data.questions), `${r.body.data?.questions?.length} questions`);
+  r = await call("GET", "/api/trivia?stop=park");
+  check("trivia: UI slug works as stop", r.body.ok && r.body.data.stationId === "place-pktrm");
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

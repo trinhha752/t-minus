@@ -6,11 +6,13 @@
 
 import { q, tx } from "./db";
 import {
+  BOSS_CLEAR_LATE_SHARE,
   BOSS_CLEAR_POLLS,
-  BOSS_DAMAGE_PER_CORRECT,
   BOSS_DELAY_THRESHOLD_SECONDS,
   BOSS_MIN_LATE_TRAINS,
+  BOSS_SPAWN_LATE_SHARE,
   bossHpFor,
+  comboDamage,
 } from "./scoring";
 import { GRANT_BUFFS_SQL } from "./progress";
 import type { BossState, RouteId, TeamLine } from "../types";
@@ -30,7 +32,12 @@ export interface DelaySample {
 
 export interface LineVerdict {
   line: TeamLine;
+  /** Bad enough to spawn a boss if none is up. */
   shouldBeActive: boolean;
+  /** Bad enough to keep an existing boss up. Looser than shouldBeActive. */
+  stillDelayed: boolean;
+  /** lateTrains / trainsSampled, 0 when nothing was sampled. */
+  lateShare: number;
   /** Distinct trains at least BOSS_DELAY_THRESHOLD_SECONDS late. */
   lateTrains: number;
   /** Distinct trains with a schedule to compare against. */
@@ -54,6 +61,10 @@ export interface LineVerdict {
  * average; that is schedule-matching noise, not a train running ahead, and
  * it must never cancel out a real delay.
  *
+ * Spawn when at least 3 trains AND half the line's trains are late; hold
+ * until fewer than 30% are. A share, not a count, because Green runs ~60
+ * trains and always has 3 late ones. See lib/scoring.ts for the tuning data.
+ *
  * An official MBTA delay alert on any of a line's routes also qualifies.
  */
 export function evaluateLines(
@@ -72,10 +83,14 @@ export function evaluateLines(
     const delays = trains.map((t) => Math.max(0, t.delaySeconds));
     const lateTrains = delays.filter((d) => d >= BOSS_DELAY_THRESHOLD_SECONDS).length;
     const delayAlert = [...alertRoutes].some((r) => routeToTeam(r) === line);
+    const lateShare = trains.length ? lateTrains / trains.length : 0;
+    const enoughTrains = lateTrains >= BOSS_MIN_LATE_TRAINS;
 
     return {
       line,
-      shouldBeActive: lateTrains >= BOSS_MIN_LATE_TRAINS || delayAlert,
+      shouldBeActive: delayAlert || (enoughTrains && lateShare >= BOSS_SPAWN_LATE_SHARE),
+      stillDelayed: delayAlert || (enoughTrains && lateShare >= BOSS_CLEAR_LATE_SHARE),
+      lateShare,
       lateTrains,
       trainsSampled: trains.length,
       worstDelaySeconds: delays.length ? Math.max(...delays) : 0,
@@ -122,7 +137,7 @@ export async function reconcileBosses(verdicts: LineVerdict[]): Promise<void> {
          clean_polls = CASE WHEN $6 THEN 0 ELSE line_status.clean_polls + 1 END,
          updated_at = now()
        RETURNING clean_polls`,
-      [v.line, v.lateTrains, v.trainsSampled, v.worstDelaySeconds, v.delayAlert, v.shouldBeActive]
+      [v.line, v.lateTrains, v.trainsSampled, v.worstDelaySeconds, v.delayAlert, v.stillDelayed]
     );
 
     const live = await q<{ id: number; source: string }>(
@@ -157,7 +172,9 @@ export async function reconcileBosses(verdicts: LineVerdict[]): Promise<void> {
  */
 export async function damageBoss(
   line: TeamLine,
-  userId: string
+  userId: string,
+  /** This rider's correct answers in a row on this boss before this one. */
+  combo = 0
 ): Promise<{ damage: number; hpRemaining: number | null; defeated: boolean }> {
   return tx(async (c) => {
     const { rows } = await c.query<{ id: number; hp_remaining: number }>(
@@ -169,7 +186,7 @@ export async function damageBoss(
     if (rows.length === 0) return { damage: 0, hpRemaining: null, defeated: false };
 
     const boss = rows[0];
-    const damage = Math.min(BOSS_DAMAGE_PER_CORRECT, boss.hp_remaining);
+    const damage = Math.min(comboDamage(combo), boss.hp_remaining);
     const hpRemaining = boss.hp_remaining - damage;
     const defeated = hpRemaining <= 0;
 

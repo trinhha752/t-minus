@@ -7,6 +7,13 @@ import { PixelMap } from './PixelMap'
 import { RealmIcon } from './ui'
 
 // Pixel-game HUD: square corners, a dark outline and a hard drop shadow.
+/** What the map card offers once your station is stamped (built in components/run/views.tsx). */
+export type WhereNext = {
+  stops: { id: string; name: string; dir: 1 | -1; stops: number; toward: string; train?: string }[]
+  transfer: { at: string; atName: string; line: LineId; left: number } | null
+  lineDone: boolean
+}
+
 const PANEL = 'border-[3px] border-ink bg-[#FBF3DF] shadow-[4px_4px_0_rgba(27,31,36,0.85)]'
 
 /** Tiny pixel icons for the legend, matching the sprites on the map. */
@@ -48,6 +55,11 @@ export function MapScreen({
   gold,
   onSelect,
   chrome = true,
+  currentId = CURRENT_STATION,
+  hereNote,
+  nextId,
+  onBoss,
+  whereNext,
 }: {
   played: Set<string>
   streak: number
@@ -55,10 +67,22 @@ export function MapScreen({
   onSelect: (id: string) => void
   /** Header, realm chips, legend and check-in card; hidden under takeovers. */
   chrome?: boolean
+  /** The station the player is at (from their real location). Defaults to the demo station. */
+  currentId?: string
+  /** Replaces "You're at · realm" when the player isn't at a station, e.g. "Nearest · 0.9 km". */
+  hereNote?: string
+  /** Where to ride next after this station is stamped; null when the whole line is stamped. */
+  nextId?: string | null
+  /** The line is complete: open its End Boss. */
+  onBoss?: () => void
+  /** After this station is stamped: the next stop each way, where to switch lines, line complete. */
+  whereNext?: WhereNext
 }) {
-  const current = stationById(CURRENT_STATION)
-  const next = stationById(NEXT_STATION)
-  const currentPlayed = played.has(CURRENT_STATION)
+  const current = stationById(currentId)
+  const currentLine = current.lines[0]
+  const nextStationId = nextId === undefined ? NEXT_STATION : nextId
+  const next = nextStationId ? stationById(nextStationId) : null
+  const currentPlayed = played.has(currentId)
   const progress = (line: LineId) => {
     const ids = ROUTES[line]
     return `${ids.filter((id) => played.has(id)).length}/${ids.length}`
@@ -66,7 +90,7 @@ export function MapScreen({
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-[#F3E2C6]">
-      <PixelMap played={played} current={CURRENT_STATION} onSelect={onSelect} interactive={chrome} />
+      <PixelMap played={played} current={currentId} onSelect={onSelect} interactive={chrome} />
 
       {chrome && (
         <>
@@ -102,7 +126,7 @@ export function MapScreen({
 
           {/* Realm progress chips */}
           <div className="absolute inset-x-4 top-[124px] z-10 flex gap-2.5 pr-1">
-            {(['red', 'green'] as LineId[]).map((line) => (
+            {(Object.keys(ROUTES) as LineId[]).map((line) => (
               <div
                 key={line}
                 className="flex h-9 min-w-0 flex-1 items-center gap-1.5 border-2 border-ink bg-[#FBF3DF] pr-2 shadow-[3px_3px_0_rgba(27,31,36,0.85)]"
@@ -121,8 +145,9 @@ export function MapScreen({
             ))}
           </div>
 
-          {/* Legend: the same pixel icons as the map, with a label (never color alone) */}
-          <div className="absolute left-4 top-[630px] z-10 flex h-9 items-center gap-3 border-2 border-ink bg-[#FBF3DF] px-2.5 font-pixel text-[12px] text-ink-soft shadow-[3px_3px_0_rgba(27,31,36,0.85)]">
+          {/* Legend: the same pixel icons as the map, with a label (never color alone).
+              Hidden once the station is stamped: the taller where-next card takes its spot. */}
+          <div className={`absolute left-4 top-[630px] z-10 ${currentPlayed ? 'hidden' : 'flex'} h-9 items-center gap-3 border-2 border-ink bg-[#FBF3DF] px-2.5 font-pixel text-[12px] text-ink-soft shadow-[3px_3px_0_rgba(27,31,36,0.85)]`}>
             <span className="flex items-center gap-1.5">
               <PixelIcon {...LEGEND.toPlay} />
               To play
@@ -141,35 +166,81 @@ export function MapScreen({
           <div className={`absolute inset-x-4 bottom-[96px] z-20 flex items-center gap-3 p-2.5 pl-3 ${PANEL}`}>
             {currentPlayed ? (
               <>
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-ink bg-[#FDECEA] text-line-red-dark">
+                <span
+                  className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-ink"
+                  style={{ backgroundColor: LINES[currentLine].tint, color: LINES[currentLine].dark }}
+                >
                   <TrainFront size={24} strokeWidth={2.3} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-pixel text-[13px] text-muted">Next stop · ~3 min</p>
-                  <p className="font-pixel text-[22px] font-bold leading-tight">{next.name}</p>
+                  <p className="truncate font-pixel text-[13px] font-bold" style={{ color: LINES[currentLine].dark }}>
+                    📍 {current.name} ✓ done
+                  </p>
+                  {whereNext && whereNext.stops.length > 0 ? (
+                    whereNext.stops.map((st) => (
+                      <button
+                        key={st.dir}
+                        type="button"
+                        onClick={() => onSelect(st.id)}
+                        className="flex w-full items-center gap-1 py-0.5 text-left font-pixel active:translate-x-px"
+                      >
+                        <span className="w-3 shrink-0 text-[14px]">{st.dir === 1 ? '▸' : '◂'}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[17px] font-bold leading-tight">{st.name}</span>
+                          <span className="block truncate text-[11px] leading-tight text-muted">
+                            {st.stops} stop{st.stops > 1 ? 's' : ''} toward {st.toward}
+                            {st.train ? ` · ${st.train}` : ''}
+                          </span>
+                        </span>
+                        <ChevronRight size={16} strokeWidth={2.6} className="shrink-0" />
+                      </button>
+                    ))
+                  ) : whereNext?.lineDone ? (
+                    <p className="font-pixel text-[17px] font-bold leading-tight">{LINES[currentLine].name} complete!</p>
+                  ) : next ? (
+                    <button type="button" onClick={() => onSelect(next.id)} className="flex w-full items-center gap-1 text-left font-pixel">
+                      <span className="truncate text-[17px] font-bold">Next: {next.name}</span>
+                      <ChevronRight size={16} strokeWidth={2.6} />
+                    </button>
+                  ) : null}
+                  {whereNext?.transfer && (whereNext.lineDone || whereNext.stops.length < 2) && (
+                    <button
+                      type="button"
+                      onClick={() => onSelect(whereNext.transfer!.at)}
+                      className="mt-0.5 block w-full truncate text-left font-pixel text-[11px] text-muted underline"
+                    >
+                      Switch to the {LINES[whereNext.transfer.line].name} at {whereNext.transfer.atName} ({whereNext.transfer.left} left)
+                    </button>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onSelect(NEXT_STATION)}
-                  className="flex h-12 items-center gap-1 border-[3px] border-ink bg-[#F1E7CF] pl-3.5 pr-2.5 font-pixel text-[16px] font-bold text-ink shadow-[3px_3px_0_#1B1F24] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                >
-                  Preview
-                  <ChevronRight size={18} strokeWidth={2.6} />
-                </button>
+                {(whereNext ? whereNext.lineDone : !next) && (
+                  <button
+                    type="button"
+                    onClick={() => onBoss?.()}
+                    className="flex h-12 items-center gap-1 border-[3px] border-ink bg-[#F1E7CF] pl-3.5 pr-2.5 font-pixel text-[16px] font-bold text-ink shadow-[3px_3px_0_#1B1F24] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                  >
+                    Fight
+                    <ChevronRight size={18} strokeWidth={2.6} />
+                  </button>
+                )}
               </>
             ) : (
               <>
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-ink bg-[#FDECEA] text-line-red-dark">
-                  <RealmIcon line="red" size={22} />
+                <span
+                  className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-ink"
+                  style={{ backgroundColor: LINES[currentLine].tint, color: LINES[currentLine].dark }}
+                >
+                  <RealmIcon line={currentLine} size={22} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-pixel text-[13px] text-muted">You&apos;re at · {LINES.red.realm}</p>
+                  <p className="truncate font-pixel text-[13px] text-muted">{hereNote ?? `You're at · ${LINES[currentLine].realm}`}</p>
                   <p className="font-pixel text-[22px] font-bold leading-tight">{current.name}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => onSelect(CURRENT_STATION)}
-                  className="flex h-12 items-center gap-1.5 border-[3px] border-ink bg-line-red pl-3.5 pr-4 font-pixel text-[17px] font-bold text-white shadow-[3px_3px_0_#1B1F24] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                  onClick={() => onSelect(currentId)}
+                  style={{ backgroundColor: LINES[currentLine].color }}
+                  className="flex h-12 items-center gap-1.5 border-[3px] border-ink pl-3.5 pr-4 font-pixel text-[17px] font-bold text-white shadow-[3px_3px_0_#1B1F24] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                 >
                   <Play size={15} strokeWidth={3} className="fill-white" />
                   Check in

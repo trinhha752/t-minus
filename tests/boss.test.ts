@@ -38,7 +38,7 @@ test("a trip is judged by its next stop, not its worst stop", () => {
 
 test("3 distinct late trains spawn a boss, 2 do not", () => {
   const two = verdict([s("Orange", "a", 300), s("Orange", "b", 600)]);
-  assert.equal(two.Orange.shouldBeActive, false);
+  assert.equal(two.Orange.shouldBeActive, false); // 100% late, but only 2 trains
   const three = verdict([s("Orange", "a", 300), s("Orange", "b", 600), s("Orange", "c", 301)]);
   assert.equal(three.Orange.shouldBeActive, true);
   assert.equal(three.Orange.lateTrains, 3);
@@ -75,4 +75,31 @@ test("lines are independent", () => {
   const v = verdict([s("Red", "a", 400), s("Red", "b", 400), s("Red", "c", 400), s("Blue", "z", 400)]);
   assert.equal(v.Red.shouldBeActive, true);
   assert.equal(v.Blue.shouldBeActive, false);
+});
+
+const line = (route: RouteId, late: number, onTime: number) => [
+  ...Array.from({ length: late }, (_, i) => s(route, `${route}-late-${i}`, 400)),
+  ...Array.from({ length: onTime }, (_, i) => s(route, `${route}-ok-${i}`, 0)),
+];
+
+test("a big line needs half its trains late, not just 3 (Green always has 3)", () => {
+  const v = verdict(line("Green-B", 18, 40)); // 31%: the real afternoon number
+  assert.equal(v.Green.lateTrains, 18);
+  assert.equal(v.Green.shouldBeActive, false);
+  assert.equal(verdict(line("Green-B", 30, 28)).Green.shouldBeActive, true); // 52%
+});
+
+test("hysteresis: an up boss holds between 30% and 50%, escapes below 30%", () => {
+  const mid = verdict(line("Orange", 7, 11)).Orange; // 39%
+  assert.equal(mid.shouldBeActive, false);
+  assert.equal(mid.stillDelayed, true);
+  const low = verdict(line("Orange", 5, 13)).Orange; // 28%
+  assert.equal(low.stillDelayed, false);
+  assert.ok(Math.abs(low.lateShare - 5 / 18) < 1e-9);
+});
+
+test("an alert holds a boss up even when trains look fine", () => {
+  const v = verdict(line("Blue", 0, 14), ["Blue"]).Blue;
+  assert.equal(v.shouldBeActive, true);
+  assert.equal(v.stillDelayed, true);
 });

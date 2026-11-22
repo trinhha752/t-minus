@@ -4,7 +4,8 @@
 // the backend working before the real screens exist. Safe to delete later.
 
 import { useCallback, useEffect, useState } from "react";
-import type { Arrival, BossState, FinalBossFight, Progress } from "@/types";
+import type { Arrival, BossState, FinalBossAnswerResult, FinalBossFight, Progress, TeamLine } from "@/types";
+import PhotoQuest from "@/components/PhotoQuest";
 
 type Api<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -41,6 +42,9 @@ export default function DevConsole() {
   const [fight, setFight] = useState<FinalBossFight | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [shake, setShake] = useState(false);
+  const [qi, setQi] = useState(0);
+  const [questLine, setQuestLine] = useState<TeamLine | null>(null);
+  const [stamp, setStamp] = useState<string | null>(null);
 
   const say = (line: string) =>
     setLog((l) => [`${new Date().toLocaleTimeString()}  ${line}`, ...l].slice(0, 12));
@@ -92,6 +96,8 @@ export default function DevConsole() {
   }, []);
 
   async function clearStation(stationId: string, gameId: string) {
+    // Levels only count where you've checked in today: teleport there first (dev only).
+    await api("/api/checkin", { stationId, lat: 0, lon: 0, teleport: true });
     const r = await api<{ pointsEarned: number; chapterBossUnlocked: string | null }>(
       "/api/minigame/result",
       { stationId, gameId, score: 500, cleared: true, durationMs: 30_000 }
@@ -103,23 +109,31 @@ export default function DevConsole() {
   }
 
   async function startFight(chapterId: string) {
-    const r = await api<FinalBossFight>("/api/final-boss/start", { chapterId });
+    const r = await api<FinalBossFight>("/api/final-boss/start", { chapterId, demo: true });
     if (!r.ok) return say(`✗ ${r.error}`);
     setFight(r.data);
-    say(`⚔ ${r.data.bossName} appears (${r.data.hpTotal} HP, x${r.data.damageMultiplier} damage)`);
+    setQi(0);
+    say(`⚔ ${r.data.bossName} appears (${r.data.hpTotal} HP demo, x${r.data.damageMultiplier} damage)`);
   }
 
-  async function hit() {
+  async function answer(choiceIndex: number) {
     if (!fight) return;
-    const r = await api<{ damage: number; hpRemaining: number; defeated: boolean; pointsEarned: number }>(
-      "/api/final-boss/hit",
-      { fightId: fight.id }
-    );
+    const question = fight.questions[qi % fight.questions.length];
+    const r = await api<FinalBossAnswerResult>("/api/final-boss/answer", {
+      fightId: fight.id,
+      questionId: question.id,
+      choiceIndex,
+    });
     if (!r.ok) return say(`✗ ${r.error}`);
     setShake(true);
     setTimeout(() => setShake(false), 250);
-    setFight({ ...fight, hpRemaining: r.data.hpRemaining, defeated: r.data.defeated });
-    say(`hit for ${r.data.damage}${r.data.defeated ? ` — DEFEATED, +${r.data.pointsEarned} pts` : ""}`);
+    setFight({ ...fight, hpRemaining: r.data.hpRemaining, defeated: r.data.defeated, combo: r.data.combo });
+    setQi((i) => i + 1);
+    say(
+      r.data.correct
+        ? `✓ hit for ${r.data.damage} (combo ${r.data.combo})${r.data.defeated ? ` — DEFEATED, +${r.data.pointsEarned} pts` : ""}`
+        : `✗ wrong (answer: ${question.options[r.data.correctIndex]}) — combo reset`
+    );
     if (r.data.defeated) loadProgress();
   }
 
@@ -219,7 +233,7 @@ export default function DevConsole() {
                   onClick={() => clearStation(s.stationId, s.gameId)}
                   className="rounded border px-2 py-1 text-sm hover:bg-black/5 active:scale-95"
                 >
-                  {s.cleared ? "✅" : "⬜"} {s.gameId}
+                  {s.cleared ? "✅" : "⬜"} {s.name}: {s.title}
                 </button>
               ))}
             </div>
@@ -254,16 +268,59 @@ export default function DevConsole() {
             />
           </div>
           <div className="font-mono">
-            {fight.hpRemaining} / {fight.hpTotal} HP · x{fight.damageMultiplier}
+            {fight.hpRemaining} / {fight.hpTotal} HP · x{fight.damageMultiplier} · combo {fight.combo}
           </div>
-          <button
-            onClick={hit}
-            disabled={fight.defeated}
-            className="rounded-lg bg-red-600 px-6 py-3 text-lg font-bold text-white active:scale-95 disabled:opacity-40"
-          >
-            {fight.defeated ? "Defeated 🏆" : "HIT (1 per 1.5s)"}
-          </button>
+          {fight.defeated ? (
+            <div className="text-lg font-bold">Defeated 🏆</div>
+          ) : (
+            (() => {
+              const question = fight.questions[qi % fight.questions.length];
+              return (
+                <div className="flex w-full flex-col gap-2">
+                  <p className="text-center font-semibold">{question.question}</p>
+                  {question.options.map((o, i) => (
+                    <button
+                      key={i}
+                      onClick={() => answer(i)}
+                      className="rounded-lg border px-4 py-2 text-left active:scale-95"
+                    >
+                      {o}
+                    </button>
+                  ))}
+                  <p className="text-center text-xs opacity-60">Max one answer per 1.5s</p>
+                </div>
+              );
+            })()
+          )}
         </section>
+      )}
+
+      {/* Photo quest */}
+      <section className="flex flex-col gap-3">
+        <h2 className="font-semibold">Photo quest · Gemini Vision</h2>
+        <div className="flex flex-wrap gap-2">
+          {(["Red", "Orange", "Blue", "Green"] as TeamLine[]).map((l) => (
+            <button key={l} onClick={() => setQuestLine(l)} className="rounded border px-3 py-1 text-sm active:scale-95">
+              Start on {l}
+            </button>
+          ))}
+        </div>
+        {stamp && (
+          // eslint-disable-next-line @next/next/no-img-element -- camera data: URL
+          <img src={stamp} alt="Last photo stamp" className="h-40 w-32 rounded border object-cover" />
+        )}
+      </section>
+      {questLine && (
+        <PhotoQuest
+          stationName="Park Street"
+          line={questLine}
+          onClose={() => setQuestLine(null)}
+          onComplete={({ passed, dataUrl }) => {
+            setQuestLine(null);
+            if (dataUrl) setStamp(dataUrl);
+            say(`📸 photo quest ${passed ? "passed" : "closed"}${dataUrl ? "" : " (no photo)"}`);
+          }}
+        />
       )}
 
       {/* Log */}

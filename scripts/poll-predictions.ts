@@ -123,7 +123,7 @@ async function tick() {
 
   // Late trains per line (5+ min, one sample per train), for tuning the threshold.
   const late = verdicts
-    .map((v) => `${v.line} ${v.lateTrains}/${v.trainsSampled}${v.delayAlert ? "+alert" : ""}`)
+    .map((v) => `${v.line} ${v.lateTrains}/${v.trainsSampled} (${Math.round(v.lateShare * 100)}%)${v.delayAlert ? "+alert" : ""}`)
     .join("  ");
   console.log(
     `[poll] ${new Date().toLocaleTimeString()} wrote ${all.length} rows | late trains: ${late}`

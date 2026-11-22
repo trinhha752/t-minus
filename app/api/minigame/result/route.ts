@@ -1,4 +1,5 @@
-// POST /api/minigame/result { stationId, gameId, score, cleared, durationMs }
+// POST /api/minigame/result { stationId, gameId?, score, cleared, durationMs }
+// stationId: UI slug ("alewife") or MBTA id. gameId is optional; checked if sent.
 // Records a finished mini-game. A cleared run counts toward the chapter, and
 // clearing the last station of a chapter unlocks its final boss.
 import { recordMiniGame, GameRuleError } from "@/lib/progress";
@@ -11,12 +12,12 @@ export async function POST(request: Request) {
   if (
     !body ||
     typeof body.stationId !== "string" ||
-    typeof body.gameId !== "string" ||
+    (body.gameId !== undefined && typeof body.gameId !== "string") ||
     typeof body.score !== "number" ||
     typeof body.cleared !== "boolean" ||
     typeof body.durationMs !== "number"
   ) {
-    return fail("expected { stationId, gameId, score, cleared, durationMs }");
+    return fail("expected { stationId, gameId?, score, cleared, durationMs }");
   }
 
   try {

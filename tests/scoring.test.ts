@@ -42,3 +42,32 @@ test("check-in radius: Park Street platform is in, Downtown Crossing is out", ()
   assert.equal(dtx.ok, false);
   assert.ok(dtx.metres > 150 && dtx.metres < 400);
 });
+
+import { decideGuess } from "../lib/guess";
+
+test("guess: a train still coming moves the target to its latest prediction", () => {
+  const now = Date.parse("2026-11-21T20:00:00Z");
+  const d = decideGuess(now + 120_000, { time: "2026-11-21T20:03:00Z", secondsAway: 180 }, now);
+  assert.deepEqual(d, { kind: "wait", targetMs: Date.parse("2026-11-21T20:03:00Z") });
+});
+
+test("guess: a train at the platform scores against its arrival time", () => {
+  const now = Date.parse("2026-11-21T20:00:00Z");
+  const d = decideGuess(now, { time: "2026-11-21T19:59:50Z", secondsAway: -10 }, now);
+  assert.deepEqual(d, { kind: "score", arrivedMs: Date.parse("2026-11-21T19:59:50Z") });
+});
+
+test("guess: gone after its time scores; gone long before is void (cancelled)", () => {
+  const now = Date.parse("2026-11-21T20:00:00Z");
+  assert.deepEqual(decideGuess(now - 30_000, null, now), { kind: "score", arrivedMs: now - 30_000 });
+  assert.deepEqual(decideGuess(now + 10 * 60_000, null, now), { kind: "void" });
+});
+
+import { comboDamage, ANSWER_DAMAGE, MAX_COMBO } from "../lib/scoring";
+
+test("combo damage matches the UI's hitDamage: 20, 40, 60, then caps", () => {
+  assert.equal(ANSWER_DAMAGE, 20);
+  assert.equal(MAX_COMBO, 3);
+  assert.deepEqual([0, 1, 2, 3, 9].map((c) => comboDamage(c)), [20, 40, 60, 60, 60]);
+  assert.equal(comboDamage(0, 1.1), 22); // Signal Shard
+});

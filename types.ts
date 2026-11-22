@@ -358,6 +358,8 @@ export interface ChatReply {
   questGranted: string | null;
   /** Tools the Conductor (a Mastra agent) called for this answer, e.g. ["get-next-trains"]. */
   toolsUsed: string[];
+  /** What each tool returned (tool id -> result), so the chat can show the data behind the answer. */
+  toolData: Record<string, unknown>;
 }
 
 /** POST /api/plan-ride { stationId } -> the plan-ride Mastra workflow's result. */
@@ -369,4 +371,6 @@ export interface RidePlan {
   fightBoss: boolean;
   reasons: string[];
   narration: string;
+  /** What the workflow's gather step collected: trains, delays, boss, next stops. */
+  facts: Record<string, unknown>;
 }

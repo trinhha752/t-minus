@@ -26,6 +26,7 @@ export async function POST(request: Request) {
       fightBoss: r.fightBoss,
       reasons: r.reasons,
       narration: r.narration,
+      facts: r.facts,
     };
     return ok(plan);
   } catch (e) {

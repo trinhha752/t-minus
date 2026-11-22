@@ -38,12 +38,18 @@ export async function POST(request: Request) {
       memory: { resource: userId, thread: `${userId}:conductor` },
       maxSteps: 6,
     });
-    const toolsUsed = [...new Set(res.toolCalls.map((c) => TOOL_IDS[c.payload.toolName] ?? c.payload.toolName))];
+    // Every step's tool calls and results (the top-level arrays only cover the last step).
+    const calls = res.steps.flatMap((st) => st.toolCalls ?? []);
+    const results = res.steps.flatMap((st) => st.toolResults ?? []);
+    const toolsUsed = [...new Set(calls.map((c) => TOOL_IDS[c.payload.toolName] ?? c.payload.toolName))];
+    const toolData: Record<string, unknown> = {};
+    for (const r of results) toolData[TOOL_IDS[r.payload.toolName] ?? r.payload.toolName] = r.payload.result;
     const reply: ChatReply = {
       characterName: "The Conductor",
       text: res.text?.trim() || "The Conductor tips his cap but says nothing. Try again in a moment.",
       questGranted: null,
       toolsUsed,
+      toolData,
     };
     return ok(reply);
   } catch (e) {

@@ -43,5 +43,5 @@ export default function BrakeGame({
   }, [stationName, lineColor, stops]);
 
   // touch-action none: holding to brake must not scroll or zoom the page.
-  return <div ref={host} className="h-full w-full select-none" style={{ touchAction: "none" }} />;
+  return <div ref={host} className="flex h-full w-full select-none items-center justify-center" style={{ touchAction: "none" }} />;
 }

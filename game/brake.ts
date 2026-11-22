@@ -387,6 +387,30 @@ class BrakeScene extends Phaser.Scene {
   }
 }
 
+/**
+ * The game screens are CSS-scaled to fit the window (components/run/PhoneFrame.tsx).
+ * Phaser measures its parent with getBoundingClientRect(), which returns the already
+ * scaled size, so the canvas got scaled twice and looked small. Measure the parent in
+ * layout pixels instead. Pointer input still maps through the canvas's on-screen
+ * bounds, so taps stay accurate.
+ */
+type ScaleInternals = {
+  parent: HTMLElement | null;
+  parentIsWindow: boolean;
+  parentSize: Phaser.Structs.Size;
+  getParentBounds: () => boolean;
+};
+const scaleProto = Phaser.Scale.ScaleManager.prototype as unknown as ScaleInternals;
+const phaserGetParentBounds = scaleProto.getParentBounds;
+scaleProto.getParentBounds = function (this: ScaleInternals) {
+  if (!this.parent || this.parentIsWindow) return phaserGetParentBounds.call(this);
+  const w = this.parent.clientWidth;
+  const h = this.parent.clientHeight;
+  if (this.parentSize.width === w && this.parentSize.height === h) return false;
+  this.parentSize.setSize(w, h);
+  return true;
+};
+
 /** Mount the level into `parent`. Call `.destroy(true)` on the result to unmount. */
 export function createBrakeGame(parent: HTMLElement, opts: BrakeOptions): Phaser.Game {
   return new Phaser.Game({
@@ -396,7 +420,9 @@ export function createBrakeGame(parent: HTMLElement, opts: BrakeOptions): Phaser
     height: H,
     pixelArt: true,
     backgroundColor: "#0b0b12",
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    // Centered by the host's CSS (BrakeGame.tsx): Phaser's own centering mixes scaled and
+    // unscaled sizes inside the CSS-scaled phone frame and pushes the canvas off to the side.
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.NO_CENTER },
     input: { activePointers: 2 },
     scene: new BrakeScene(opts),
   });

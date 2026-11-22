@@ -4,7 +4,7 @@
 //   /                         MapView
 //   /inventory                InventoryView (the Bag tab: items, loadout and the Station Shop)
 //   /station/[id]             StationView  (map with the station card open)
-//   /station/[id]/play        PlayView     (Harvard: Two Truths and a Lie)
+//   /station/[id]/play        PlayView     (Two Lies and a Truth or Landmark Match)
 //   /station/[id]/results     ResultsView
 //   /boss                     BossView     (Delay Boss mini-boss fight)
 //   /final-boss               EndBossView  (End-of-Line Boss: The Iron Archivist)
@@ -14,22 +14,29 @@ import { useRouter } from 'next/navigation'
 import { Swords, TriangleAlert } from 'lucide-react'
 import { StationCard } from '@/components/cards/StationCard'
 import { DelayBoss, type LiveDelayBoss } from './DelayBoss'
-import { EndBoss, type LiveEndBoss } from './EndBoss'
-import { END_BOSS } from './stats'
+import { LineBoss } from './LineBoss'
+import { loadoutStats } from './items'
 import { LINES } from './stations'
-import { GameFrame } from './GameFrame'
 import { MapScreen } from './MapScreen'
 import { ResultsScreen } from './ResultsScreen'
 import { useRun } from './RunProvider'
 import { CURRENT_STATION, stationById, type Station } from './stations'
 import { MATCH_GAME, MatchGame } from './MatchGame'
+import { TRUTH_GAME, TruthGame } from './TruthGame'
+import { TRUTH_ROUNDS } from './truths'
+import { SEAL_GAME, SealGame } from './SealGame'
+import type { GameResult } from './GameFrame'
 import { Inventory } from './Inventory'
 import { Collection } from './Collection'
 import { ProfileScreen } from './Profile'
 
-/** Stations with their own hand-made game; every other station plays Landmark Match for now. */
-const HAS_OWN_GAME = new Set(['harvard'])
-const withGame = (s: Station): Station => (HAS_OWN_GAME.has(s.id) ? s : { ...s, game: MATCH_GAME })
+/** BU Central has its own game; stations with Two Lies and a Truth questions play that; the rest play Landmark Match. */
+const isSealGame = (id: string) => id === 'bucentral'
+const isTruthGame = (id: string) => id in TRUTH_ROUNDS
+const withGame = (s: Station): Station => ({
+  ...s,
+  game: isSealGame(s.id) ? SEAL_GAME : isTruthGame(s.id) ? TRUTH_GAME : MATCH_GAME,
+})
 import { BottomNav, HomeIndicator, StatusBar, type Tab } from './ui'
 import { DEMO_MODE, DEMO_STATIONS, setDemoStation, useDemoStation, useMyStation } from '@/components/game/useMyStation'
 import { lineComplete, nextStation, nextStops, suggestTransfer } from '@/components/game/loop'
@@ -237,79 +244,28 @@ export function MapView() {
   )
 }
 
-/** This rider's real End Boss fight for their line's chapter (/api/final-boss/*). */
-function useLiveEndBoss(stationId: string, ready: boolean, demo: boolean, unlocked: boolean, runId: number) {
-  const [live, setLive] = useState<LiveEndBoss | null>(null)
-  const [status, setStatus] = useState<'loading' | 'ready' | 'none'>('loading')
-  const chapterId = stationById(stationId).lines[0]
-  useEffect(() => {
-    if (!ready) return
-    let alive = true
-    // The server only starts a real fight once the line is complete (or in a demo fight).
-    if (!demo && !unlocked) {
-      const t = setTimeout(() => alive && setStatus('none'), 0)
-      return () => {
-        alive = false
-        clearTimeout(t)
-      }
-    }
-    const post = (url: string, body: unknown) =>
-      fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-        .then((r) => r.json())
-        .catch(() => null)
-    void (async () => {
-      const r = await post('/api/final-boss/start', { chapterId, demo })
-      if (!alive) return
-      if (!r?.ok || !r.data.questions?.length) return setStatus('none')
-      const fight = r.data
-      setLive({
-        bossName: fight.bossName,
-        title: `Legendary · ${LINES[chapterId].realm}`,
-        hpTotal: fight.hpTotal,
-        hpStart: fight.hpRemaining,
-        questions: (fight.questions as { id: string; question: string; options: string[] }[]).map((q) => ({
-          id: q.id,
-          q: q.question,
-          answers: q.options,
-        })),
-        answer: async (questionId, choiceIndex) => {
-          const a = await post('/api/final-boss/answer', { fightId: fight.id, questionId, choiceIndex })
-          if (!a?.ok) return null
-          return {
-            correct: a.data.correct,
-            correctIndex: a.data.correctIndex,
-            damage: a.data.damage,
-            hpRemaining: a.data.hpRemaining,
-            combo: a.data.combo,
-          }
-        },
-        forfeit: () => void post('/api/final-boss/forfeit', { fightId: fight.id }),
-      })
-      setStatus('ready')
-    })()
-    return () => {
-      alive = false
-    }
-  }, [chapterId, ready, demo, unlocked, runId])
-  return { live, status }
-}
-
 export function EndBossView() {
   const router = useRouter()
-  const { runId, endBossHp, gold, played, refresh } = useRun()
-  const here = useHere()
-  const { live, status } = useLiveEndBoss(here.id, here.settled, endBossHp < END_BOSS.hp, lineComplete(here.id, played), runId)
-  if (status === 'loading') return <div className="absolute inset-0 tex-leather" />
+  const { runId, endBossHp, addGold, equipped, owned } = useRun()
+  const loadout = loadoutStats(equipped, owned)
+  const stats = {
+    hearts: loadout.hearts,
+    damage: loadout.damage,
+    combo: loadout.combo,
+    // Two potions to start, plus one per Healing Tonic in your loadout
+    potions: 2 + equipped.filter((id) => id === 'tonic').length,
+    shield: equipped.includes('shield'),
+  }
   return (
     <>
       {/* Keyed on runId: each challenge is a fresh fight even though Next keeps this route alive. */}
-      <EndBoss
-        key={`${runId}-${live ? 'live' : 'local'}`}
-        live={live ?? undefined}
+      <LineBoss
+        key={runId}
+        line="red"
         maxHp={endBossHp}
-        gold={gold}
-        onExit={() => {
-          void refresh() // the win bonus and badge are awarded on the server
+        stats={stats}
+        onExit={(earned) => {
+          addGold(earned)
           router.push('/')
         }}
       />
@@ -451,33 +407,24 @@ export function StationView({ id }: { id: string }) {
 export function PlayView({ id }: { id: string }) {
   const router = useRouter()
   const { runId, finishGame, startGame } = useRun()
-  if (!HAS_OWN_GAME.has(id)) {
-    // Every other station plays Landmark Match (it shows its own results).
-    return (
-      <>
-        <MatchGame
-          key={runId}
-          seed={runId}
-          station={stationById(id)}
-          onFinish={(r) => finishGame(r, id)}
-          onPlayAgain={startGame}
-          onMap={() => router.push('/')}
-        />
-        <HomeIndicator tone="light" />
-      </>
-    )
+  // Both games show their own results. Keyed on runId: Next keeps this route alive between
+  // visits, so a new run must remount the game.
+  const props = {
+    seed: runId,
+    station: stationById(id),
+    onFinish: (r: GameResult) => finishGame(r, id),
+    onPlayAgain: startGame,
+    onMap: () => router.push('/'),
   }
   return (
     <>
-      {/* Keyed on runId: Next keeps this route alive between visits, so a new run must remount the game. */}
-      <GameFrame
-        key={runId}
-        onFinish={(r) => {
-          finishGame(r)
-          router.push(`/station/${id}/results`)
-        }}
-        onQuit={() => router.push('/')}
-      />
+      {isSealGame(id) ? (
+        <SealGame key={runId} {...props} />
+      ) : isTruthGame(id) ? (
+        <TruthGame key={runId} {...props} />
+      ) : (
+        <MatchGame key={runId} {...props} />
+      )}
       <HomeIndicator tone="light" />
     </>
   )

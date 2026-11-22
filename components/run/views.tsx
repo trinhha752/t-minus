@@ -13,9 +13,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Swords, TriangleAlert } from 'lucide-react'
 import { StationCard } from '@/components/cards/StationCard'
-import { DelayBoss } from './DelayBoss'
+import { DelayBoss, type LiveDelayBoss } from './DelayBoss'
 import { LineBoss } from './LineBoss'
 import { loadoutStats } from './items'
+import { LINES } from './stations'
 import { MapScreen } from './MapScreen'
 import { ResultsScreen } from './ResultsScreen'
 import { useRun } from './RunProvider'
@@ -37,7 +38,7 @@ const withGame = (s: Station): Station => ({
   game: isSealGame(s.id) ? SEAL_GAME : isTruthGame(s.id) ? TRUTH_GAME : MATCH_GAME,
 })
 import { BottomNav, HomeIndicator, StatusBar, type Tab } from './ui'
-import { DEMO_MODE, useMyStation } from '@/components/game/useMyStation'
+import { DEMO_MODE, DEMO_STATIONS, setDemoStation, useDemoStation, useMyStation } from '@/components/game/useMyStation'
 import { lineComplete, nextStation, nextStops, suggestTransfer } from '@/components/game/loop'
 import type { WhereNext } from './MapScreen'
 import type { Arrival } from '@/types'
@@ -48,15 +49,53 @@ const TAB_HREF: Record<Tab, string> = { map: '/', bag: '/inventory', collection:
 // Stations where the End-of-Line Boss can be challenged. Only the Red Line boss exists so far.
 const END_OF_LINE = new Set(['alewife'])
 
+/** Stage-demo controls on the map: stand at one station per line, or start over. */
+function DemoControls({ here, onNewRider }: { here: string; onNewRider: () => void }) {
+  const demo = useDemoStation()
+  const chip =
+    'border-2 border-ink px-1.5 py-1 font-pixel text-[11px] font-bold leading-none shadow-[2px_2px_0_#1B1F24] active:translate-x-px active:translate-y-px active:shadow-none'
+  return (
+    <div className="absolute left-4 right-4 top-[236px] z-20 flex flex-wrap items-center gap-1.5 border-2 border-ink bg-[#F1E7CF] px-2 py-1.5 shadow-[3px_3px_0_rgba(27,31,36,0.85)]">
+      <span className="font-pixel text-[11px] font-bold text-muted">DEMO · stand at</span>
+      {DEMO_STATIONS.map((d) => {
+        const on = demo === d.slug
+        return (
+          <button
+            key={d.slug}
+            type="button"
+            onClick={() => setDemoStation(on ? null : d.slug)}
+            className={`${chip} ${on ? 'text-white' : 'bg-[#FBF3DF] text-ink'}`}
+            style={on ? { backgroundColor: LINES[d.line].color } : { borderLeft: `6px solid ${LINES[d.line].color}` }}
+            aria-pressed={on}
+            title={on ? 'Back to my real location' : `Pretend you're at ${d.label}`}
+          >
+            {d.label}
+          </button>
+        )
+      })}
+      {demo && here === demo && (
+        <button type="button" onClick={() => setDemoStation(null)} className={`${chip} bg-[#FBF3DF] text-ink`}>
+          📍 Real
+        </button>
+      )}
+      <button type="button" onClick={onNewRider} className={`${chip} bg-[#FBF3DF] text-ink`}>
+        ↺ New rider
+      </button>
+    </div>
+  )
+}
+
 /** The station the player is really at (phone location), or the demo station until located. */
 function useHere() {
   const here = useMyStation()
+  const demo = useDemoStation()
+  if (demo) return { id: demo, note: undefined, located: true, settled: true }
   const id = here.slug ?? CURRENT_STATION
   const note =
     here.slug && !here.inRange && here.metres != null
       ? `Nearest station · ${(here.metres / 1000).toFixed(1)} km`
       : undefined
-  return { id, note, located: here.status === 'ready' }
+  return { id, note, located: here.status === 'ready', settled: here.status !== 'locating' }
 }
 
 /** Live next train each way at a station: MBTA direction 0 is our +1 along the line, 1 is -1. */
@@ -128,15 +167,7 @@ function MapLayer() {
         }}
         onSelect={(id) => router.push(`/station/${id}`)}
       />
-      {DEMO_MODE && (
-        <button
-          type="button"
-          onClick={() => void newRider()}
-          className="absolute left-4 top-[238px] z-20 border-2 border-ink bg-[#FBF3DF] px-2 py-1 font-pixel text-[12px] font-bold shadow-[2px_2px_0_#1B1F24] active:translate-x-px active:translate-y-px active:shadow-none"
-        >
-          ↺ New rider (demo)
-        </button>
-      )}
+      {DEMO_MODE && <DemoControls here={here.id} onNewRider={() => void newRider()} />}
       <StatusBar />
       <BottomNav tab="map" onChange={(t) => router.push(TAB_HREF[t])} />
     </>
@@ -243,20 +274,98 @@ export function EndBossView() {
   )
 }
 
+const TEAM_OF: Record<string, 'Red' | 'Green' | 'Orange'> = { red: 'Red', green: 'Green', orange: 'Orange' }
+
+/**
+ * The real Delay Boss on the rider's line: its shared HP from /api/boss, questions from
+ * /api/trivia?line=, answers checked by /api/trivia/answer. In demo mode, "Simulate delay"
+ * starts one when the line isn't really late (/api/boss/simulate).
+ */
+function useLiveDelayBoss(stationId: string, ready: boolean) {
+  const [live, setLive] = useState<LiveDelayBoss | null>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'none'>('loading')
+  const line = TEAM_OF[stationById(stationId).lines[0]]
+  useEffect(() => {
+    if (!ready) return
+    let alive = true
+    const getBoss = async () =>
+      ((await fetch('/api/boss').then((r) => r.json()).catch(() => null))?.data ?? []).find(
+        (b: { line: string; active: boolean }) => b.line === line && b.active,
+      )
+    void (async () => {
+      let boss = await getBoss()
+      if (!boss && DEMO_MODE) {
+        await fetch('/api/boss/simulate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ line }),
+        }).catch(() => null)
+        boss = await getBoss()
+      }
+      const round = await fetch(`/api/trivia?line=${line}`).then((r) => r.json()).catch(() => null)
+      if (!alive) return
+      if (!boss || !round?.ok || !round.data.questions.length) return setStatus('none')
+      const roundId = round.data.roundId as string
+      setLive({
+        lineName: `${line} Line`,
+        delayLabel:
+          boss.avgDelaySeconds >= 60
+            ? `+${Math.round(boss.avgDelaySeconds / 60)} min`
+            : boss.lateTrains > 0
+              ? `${boss.lateTrains} trains late`
+              : 'Delayed',
+        hpTotal: boss.hpTotal,
+        hpStart: boss.hpRemaining,
+        questions: (round.data.questions as { id: string; question: string; options: string[] }[]).map((q) => ({
+          id: q.id,
+          q: q.question,
+          answers: q.options,
+        })),
+        answer: async (questionId, choiceIndex) => {
+          const r = await fetch('/api/trivia/answer', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ roundId, questionId, choiceIndex, line }),
+          })
+            .then((x) => x.json())
+            .catch(() => null)
+          if (!r?.ok) return null
+          return {
+            correct: r.data.correct,
+            correctIndex: r.data.correctIndex,
+            damage: r.data.bossDamage,
+            hpRemaining: r.data.bossHpRemaining,
+            combo: r.data.combo,
+          }
+        },
+      })
+      setStatus('ready')
+    })()
+    return () => {
+      alive = false
+    }
+  }, [line, ready])
+  return { live, status }
+}
+
 export function BossView() {
   const router = useRouter()
-  const { runId, bossIndex, gold, played, streak, addGold } = useRun()
+  const { runId, bossIndex, gold, played, streak, refresh } = useRun()
+  const here = useHere()
+  const { live, status } = useLiveDelayBoss(here.id, here.settled)
+  if (status === 'loading') return <div className="absolute inset-0 tex-leather" />
   return (
     <>
       {/* Keyed on runId: each delay is a fresh fight even though Next keeps this route alive. */}
       <DelayBoss
-        key={runId}
+        key={`${runId}-${live ? 'live' : 'local'}`}
+        live={live ?? undefined}
         bossIndex={bossIndex}
         gold={gold}
         played={played}
         streak={streak}
-        onExit={(earned) => {
-          addGold(earned)
+        onExit={() => {
+          void refresh() // points for a defeated boss are awarded on the server
           router.push('/')
         }}
       />

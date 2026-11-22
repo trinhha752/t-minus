@@ -64,11 +64,16 @@ export async function POST(req: NextRequest) {
   );
   const lines = [...new Set(((station?.routes ?? []) as RouteId[]).map(routeToTeam))];
 
+  // The boss being fought: the one on body.line when the client says (a Park
+  // Street question is on both Red and Green, and both could have a boss up),
+  // otherwise any live boss on the question's lines.
+  const fightLine = body.line && lines.includes(body.line) ? body.line : null;
   const liveBoss = await one<{ id: number; line: TeamLine }>(
     `SELECT id, line FROM boss_events
       WHERE ended_at IS NULL AND line = ANY($1::text[])
+      ORDER BY (line = $2) DESC
       LIMIT 1`,
-    [lines]
+    [lines, fightLine]
   );
 
   // Combo: this rider's correct answers in a row on this boss so far.

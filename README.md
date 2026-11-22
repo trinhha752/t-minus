@@ -58,7 +58,8 @@ Map: "YOU ARE HERE · BU Central"  (your phone's real location)
 - **Where next** (`components/game/loop.ts`): the nearest unstamped stop in **each direction** along your track (a Green branch stop's track is the trunk plus its branch; at Kenmore, outbound looks down the B, C and D branches). Live train times come from `/api/predictions`; MBTA direction 0 is "▸" (outbound/southbound), 1 is "◂".
 - **Branches:** Green splits at Kenmore (B, C, D) and Copley (E); Red splits at JFK/UMass into Ashmont (A) and Braintree (Br). Branch stops show their letter on the map.
 - **Switching lines** happens at the transfer stations: Park Street (Red–Green), Downtown Crossing (Red–Orange), and North Station and Haymarket (Green–Orange). When a direction or the whole line is done, the card points to the nearest transfer to a line with stations left.
-- **Start over:** tap **↺ New rider (demo)** on the map (dev, or `NEXT_PUBLIC_DEMO_MODE=1`). It gives you a fresh rider with nothing stamped.
+- **Demo stations:** in dev (or with `NEXT_PUBLIC_DEMO_MODE=1`) the map shows **DEMO · stand at Harvard / BU Central / Chinatown**, one per line (Red, Green, Orange). Tapping one makes the whole game act as if you're standing there: the map, check-in, Arrive, and that line's bosses. **📍 Real** goes back to your actual location.
+- **Start over:** tap **↺ New rider** on the map (dev, or `NEXT_PUBLIC_DEMO_MODE=1`). It gives you a fresh rider with nothing stamped.
 - Playing a station again the same day is allowed but earns nothing ("Already stamped today").
 - Still local only: gold from the boss fights (`addGold`), until the bosses are wired to the server.
 
@@ -150,7 +151,8 @@ import PhotoQuest from "@/components/PhotoQuest";
 
 - Tasks are in `data/photo-quests.json`: 10 generic ones that work at **any** station (a sign, a map, something metal, something the line's color...). Never station-specific.
 - It opens the back camera, shrinks the photo to 768px JPEG, and sends it to `POST /api/photo-quest/verify { questId, imageBase64, line }`, which returns `{ passed, reason }`. Gemini is told to be generous.
-- **It fails open.** With no Gemini key, an error, or a response slower than 6s, it passes. A judge's photo must never get rejected on stage. The image is never stored or logged.
+- **Models:** it tries `gemini-3.6-flash`, then `gemini-3.1-flash-lite` if that's overloaded or slow (override with `GEMINI_MODEL=a,b`). Checks take about 1.5 s. Tested: a green object and a station sign pass; a black photo and a blank wall fail.
+- **It fails open.** With no Gemini key, an error, or no answer within 6s from any model, it passes. A judge's photo must never get rejected on stage. The image is never stored or logged.
 - Fail means "try another angle" with free reshoots. No camera means a Skip button. The player is never trapped.
 - A "Demo: pass without camera" button shows in dev, or when `NEXT_PUBLIC_DEMO_MODE=1`, in case the venue blocks camera access.
 - **The camera needs HTTPS.** `localhost` works, but a phone pointed at your laptop's IP silently fails. Test on a phone with `npx next dev --experimental-https`, a tunnel, or the deployed Vultr URL.

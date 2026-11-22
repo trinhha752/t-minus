@@ -4,7 +4,7 @@
 // /api/stations/nearest. Cached for the session so moving between screens
 // doesn't re-prompt or re-fetch.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 export interface MyStation {
   status: "locating" | "ready" | "nolocation";
@@ -67,3 +67,54 @@ export function useMyStation(): MyStation {
 
 /** Dev or NEXT_PUBLIC_DEMO_MODE=1: allow playing a station you're not at (the server allows teleport check-ins too). */
 export const DEMO_MODE = process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_DEMO_MODE === "1";
+
+/* ---------- demo stations: "pretend I'm standing here" (dev / demo mode only) ---------- */
+
+/** One station per line for the stage demo: most verified trivia on each line, BU Central is the venue. */
+export const DEMO_STATIONS = [
+  { slug: "harvard", line: "red", label: "Harvard" },
+  { slug: "bucentral", line: "green", label: "BU Central" },
+  { slug: "chinatown", line: "orange", label: "Chinatown" },
+] as const;
+
+const DEMO_KEY = "tminus-demo-station";
+let demoSlug: string | null = null;
+let demoLoaded = false;
+const listeners = new Set<() => void>();
+
+function readDemo(): string | null {
+  if (!demoLoaded) {
+    demoLoaded = true;
+    try {
+      demoSlug = sessionStorage.getItem(DEMO_KEY);
+    } catch {
+      demoSlug = null;
+    }
+  }
+  return demoSlug;
+}
+
+/** Pretend to stand at this station (null = use the real location). Survives page changes and refresh. */
+export function setDemoStation(slug: string | null) {
+  demoSlug = DEMO_MODE ? slug : null;
+  demoLoaded = true;
+  try {
+    if (demoSlug) sessionStorage.setItem(DEMO_KEY, demoSlug);
+    else sessionStorage.removeItem(DEMO_KEY);
+  } catch {
+    /* private mode: works for this page only */
+  }
+  listeners.forEach((l) => l());
+}
+
+/** The demo station in effect, or null. Always null outside dev / demo mode. */
+export function useDemoStation(): string | null {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => (DEMO_MODE ? readDemo() : null),
+    () => null
+  );
+}

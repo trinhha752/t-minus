@@ -38,6 +38,24 @@ const QUESTIONS = [
 ]
 
 const MAX_HP = MINI_BOSS.hp
+
+/**
+ * Live mode: the real, shared Delay Boss on the rider's line (see BossView in views.tsx).
+ * Questions come from the server without answers; each answer is checked there and
+ * the damage lands on the HP everyone on the line shares.
+ */
+export type LiveDelayBoss = {
+  lineName: string
+  /** e.g. "+6 min" */
+  delayLabel: string
+  hpTotal: number
+  hpStart: number
+  questions: { id: string; q: string; answers: string[] }[]
+  answer: (
+    questionId: string,
+    choice: number,
+  ) => Promise<{ correct: boolean; correctIndex: number; damage: number; hpRemaining: number | null; combo: number } | null>
+}
 const LINE = { name: 'Red Line', delay: '+6 min' }
 
 type Snap = {
@@ -52,6 +70,8 @@ type Snap = {
   combo: number
   /** Damage of the most recent hit, for the pop-up number. */
   lastHit: number
+  /** Live mode: the correct choice, revealed by the server after answering. */
+  correctIdx?: number
 }
 
 const base: Snap = {
@@ -86,8 +106,11 @@ export function DelayBoss({
   played,
   streak,
   onExit,
+  live,
 }: {
   preview?: BossState
+  /** The real shared boss; omitted = the local demo fight. */
+  live?: LiveDelayBoss
   /** Which boss from BOSSES; picked by the caller so rendering stays pure. */
   bossIndex: number
   gold: number
@@ -97,9 +120,15 @@ export function DelayBoss({
   onExit: (goldEarned: number) => void
 }) {
   const boss = BOSSES[bossIndex % BOSSES.length]
-  const [s, setS] = useState<Snap>(() => PREVIEWS[preview ?? 'takeover'])
+  const [s, setS] = useState<Snap>(() =>
+    live && !preview ? { ...base, hp: live.hpStart, ghost: live.hpStart } : PREVIEWS[preview ?? 'takeover'],
+  )
+  const [busy, setBusy] = useState(false)
   const frozen = !!preview
-  const Q = QUESTIONS[s.q % QUESTIONS.length]
+  const maxHp = live?.hpTotal ?? MAX_HP
+  const lineLabel = live ? { name: live.lineName, delay: live.delayLabel } : LINE
+  const liveQ = live && live.questions.length ? live.questions[s.q % live.questions.length] : null
+  const Q = liveQ ? { q: liveQ.q, answers: liveQ.answers, correct: s.correctIdx ?? -1 } : QUESTIONS[s.q % QUESTIONS.length]
 
   // Train countdown, only while choosing. Solo fight: only the player deals damage.
   useEffect(() => {
@@ -124,6 +153,25 @@ export function DelayBoss({
 
   const pick = (i: number) => {
     if (frozen || s.state !== 'fight') return
+    if (live && liveQ) {
+      if (busy) return
+      setBusy(true)
+      void live.answer(liveQ.id, i).then((r) => {
+        setBusy(false)
+        setS((p) => {
+          if (p.state !== 'fight') return p
+          if (r?.correct) {
+            const hp = Math.max(0, r.hpRemaining ?? p.hp - r.damage)
+            if (hp <= 0) window.setTimeout(() => setS((x) => ({ ...x, state: 'defeated' })), 1100)
+            return { ...p, picked: i, correctIdx: i, hp, ghost: p.hp, dealt: p.dealt + r.damage, combo: r.combo, lastHit: r.damage, state: 'hit' }
+          }
+          const hearts = p.hearts - 1
+          if (hearts <= 0) window.setTimeout(() => setS((x) => ({ ...x, state: 'fallen' })), 1100)
+          return { ...p, picked: i, correctIdx: r?.correctIndex ?? -1, hearts, combo: 0, state: 'miss' }
+        })
+      })
+      return
+    }
     if (i === Q.correct) {
       const dmg = hitDamage(s.combo)
       const hp = Math.max(0, s.hp - dmg)
@@ -139,7 +187,7 @@ export function DelayBoss({
   const next = () => {
     if (frozen) return
     setS((p) =>
-      p.hp <= 0 || p.hearts <= 0 ? p : { ...p, q: p.q + 1, picked: null, ghost: p.hp, state: 'fight' },
+      p.hp <= 0 || p.hearts <= 0 ? p : { ...p, q: p.q + 1, picked: null, correctIdx: undefined, ghost: p.hp, state: 'fight' },
     )
   }
 
@@ -149,6 +197,7 @@ export function DelayBoss({
   if (s.state === 'takeover')
     return (
       <Takeover
+        lineLabel={lineLabel}
         boss={boss}
         frozen={frozen}
         played={played}
@@ -189,7 +238,7 @@ export function DelayBoss({
             <div className="flex min-w-0 flex-1 justify-center">
               <span className="flex h-9 items-center gap-1.5 rounded-full border-2 border-[#F6D47E] bg-[#DA291C] px-3 font-fantasy text-[12.5px] font-black tracking-[0.05em] text-white shadow-[0_3px_0_#6E120B]">
                 <TriangleAlert size={15} strokeWidth={2.8} />
-                {LINE.name} · {LINE.delay}
+                {lineLabel.name} · {lineLabel.delay}
               </span>
             </div>
             <CoinPill value={gold} />
@@ -257,7 +306,7 @@ export function DelayBoss({
 
             {/* HP + train timer */}
             <div className="absolute inset-x-4 bottom-3">
-              <HpBar hp={s.hp} ghost={s.ghost} flash={s.state === 'hit'} frozen={frozen} />
+              <HpBar hp={s.hp} ghost={s.ghost} flash={s.state === 'hit'} frozen={frozen} max={maxHp} />
               <div className="mt-1.5 flex items-center justify-between text-[12.5px] font-semibold text-[#E8D3A4]">
                 <Hearts hearts={s.hearts} combo={s.combo} lostNow={s.state === 'miss' && !frozen} />
                 <span className={`flex items-center gap-1.5 ${s.train <= 30 ? 'text-[#FF9A8A]' : ''}`}>
@@ -391,13 +440,26 @@ function TunnelArch({ dim }: { dim: boolean }) {
   )
 }
 
-function HpBar({ hp, ghost, flash, frozen }: { hp: number; ghost: number; flash: boolean; frozen: boolean }) {
+function HpBar({
+  hp,
+  ghost,
+  flash,
+  frozen,
+  max = MAX_HP,
+}: {
+  hp: number
+  ghost: number
+  flash: boolean
+  frozen: boolean
+  /** Total HP (the live shared boss has its own). */
+  max?: number
+}) {
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between font-fantasy font-black">
         <span className="text-[12px] tracking-[0.12em] text-[#E8D3A4]">BOSS HP</span>
         <span className="text-[17px] tabular-nums text-[#FFF1D0]">
-          {hp} <span className="text-[13px] text-[#C9B28A]">/ {MAX_HP}</span>
+          {hp} <span className="text-[13px] text-[#C9B28A]">/ {max}</span>
         </span>
       </div>
       <div
@@ -406,17 +468,17 @@ function HpBar({ hp, ghost, flash, frozen }: { hp: number; ghost: number; flash:
         role="progressbar"
         aria-label="Boss health"
         aria-valuemin={0}
-        aria-valuemax={MAX_HP}
+        aria-valuemax={max}
         aria-valuenow={hp}
       >
         <div
           className="absolute inset-y-0 left-0 bg-[#FFE08A] transition-[width] duration-500 ease-out"
-          style={{ width: `${(ghost / MAX_HP) * 100}%` }}
+          style={{ width: `${(ghost / max) * 100}%` }}
         />
         <div
           className="absolute inset-y-0 left-0 transition-[width] duration-200"
           style={{
-            width: `${(hp / MAX_HP) * 100}%`,
+            width: `${(hp / max) * 100}%`,
             background: 'linear-gradient(180deg,#FF7A63 0%,#DA291C 45%,#9E150C 100%)',
           }}
         />
@@ -440,7 +502,7 @@ function FightPanel({
   onPick,
   onNext,
 }: {
-  Q: (typeof QUESTIONS)[number]
+  Q: { q: string; answers: string[]; correct: number }
   qNum: number
   state: BossState
   picked: number | null
@@ -474,7 +536,7 @@ function FightPanel({
           return (
             <AnswerCard
               key={`${qNum}-${i}`}
-              letter={'ABC'[i]}
+              letter={'ABCD'[i]}
               text={a}
               state={st}
               frozen={frozen}
@@ -724,6 +786,7 @@ function Outcome({
 }
 
 function Takeover({
+  lineLabel = LINE,
   boss,
   frozen,
   played,
@@ -732,6 +795,7 @@ function Takeover({
   onFight,
   onExit,
 }: {
+  lineLabel?: { name: string; delay: string }
   boss: (typeof BOSSES)[number]
   frozen: boolean
   played: Set<string>
@@ -767,7 +831,7 @@ function Takeover({
             DELAY DETECTED
           </p>
           <p className="font-fantasy text-[14px] font-bold tracking-[0.06em] text-[#FFE9D6]">
-            {LINE.name} · {LINE.delay}
+            {lineLabel.name} · {lineLabel.delay}
           </p>
         </div>
         <div

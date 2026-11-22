@@ -19,7 +19,7 @@ import { MapScreen } from "@/components/run/MapScreen";
 import { useRun } from "@/components/run/RunProvider";
 import { LINES, stationById } from "@/components/run/stations";
 import { stationQuest } from "@/lib/photo-quests";
-import { DEMO_MODE, useMyStation } from "@/components/game/useMyStation";
+import { DEMO_MODE, useDemoStation, useMyStation } from "@/components/game/useMyStation";
 import type { BrakeResult } from "@/game/brake";
 import type { Arrival, TeamLine } from "@/types";
 
@@ -55,6 +55,7 @@ export function ArriveView({ id }: { id: string }) {
   const [startedAt, setStartedAt] = useState(0);
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
 
+  const demoHere = useDemoStation() === id; // the map's demo button put you here
   const atThisStation = here.slug === id && here.inRange;
   const teleport = !atThisStation && DEMO_MODE;
   const canArrive = atThisStation || teleport;
@@ -181,7 +182,9 @@ export function ArriveView({ id }: { id: string }) {
                 <MapPin size={16} className="mt-0.5 shrink-0" />
                 {here.status === "locating"
                   ? "Finding you…"
-                  : atThisStation
+                  : demoHere
+                    ? "You're here (demo station). Check in!"
+                    : atThisStation
                     ? `You're here (${here.metres} m). Check in!`
                     : teleport
                       ? `Demo teleport${here.nearestAny ? ` (you're near ${here.nearestAny.name})` : ""}`
@@ -232,7 +235,7 @@ export function ArriveView({ id }: { id: string }) {
             </button>
             <button className={`${BTN} flex-1 text-white`} style={{ backgroundColor: line.color }} disabled={!canArrive} onClick={arrive}>
               <TrainFront size={18} strokeWidth={2.6} />
-              {teleport ? "Arrive (demo)" : "Arrive"}
+              {teleport && !demoHere ? "Arrive (demo)" : "Arrive"}
             </button>
           </div>
         )}

@@ -213,7 +213,7 @@ export const STATIONS: Station[] = [
     y: 366,
     label: { dx: 14, dy: 0, align: 'start', text: "Gov't\nCenter" },
     story: "Scollay Square, once Boston's rowdiest district, was razed for City Hall Plaza.",
-    game: { title: 'Lost Square', genre: 'Memory', time: '~1 min' },
+    game: { title: 'Slide Sneak', genre: 'Stealth', time: '~30 sec' },
     fact: { no: 5, title: 'Scollay Square' },
   },
   {

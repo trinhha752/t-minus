@@ -27,17 +27,19 @@ import { MATCH_GAME, MatchGame } from './MatchGame'
 import { TRUTH_GAME, TruthGame } from './TruthGame'
 import { TRUTH_ROUNDS } from './truths'
 import { SEAL_GAME, SealGame } from './SealGame'
+import { SLIDE_GAME, SlideGame } from './SlideGame'
 import type { GameResult } from './GameFrame'
 import { Inventory } from './Inventory'
 import { Collection } from './Collection'
 import { ProfileScreen } from './Profile'
 
-/** BU Central has its own game; stations with Two Lies and a Truth questions play that; the rest play Landmark Match. */
+/** BU Central and Government Center have their own games; stations with Two Lies and a Truth questions play that; the rest play Landmark Match. */
 const isSealGame = (id: string) => id === 'bucentral'
+const isSlideGame = (id: string) => id === 'gov'
 const isTruthGame = (id: string) => id in TRUTH_ROUNDS
 const withGame = (s: Station): Station => ({
   ...s,
-  game: isSealGame(s.id) ? SEAL_GAME : isTruthGame(s.id) ? TRUTH_GAME : MATCH_GAME,
+  game: isSealGame(s.id) ? SEAL_GAME : isSlideGame(s.id) ? SLIDE_GAME : isTruthGame(s.id) ? TRUTH_GAME : MATCH_GAME,
 })
 import { BottomNav, HomeIndicator, StatusBar, type Tab } from './ui'
 import { DEMO_MODE, DEMO_STATIONS, setDemoStation, useDemoStation, useMyStation } from '@/components/game/useMyStation'
@@ -458,6 +460,8 @@ export function PlayView({ id }: { id: string }) {
     <>
       {isSealGame(id) ? (
         <SealGame key={runId} {...props} />
+      ) : isSlideGame(id) ? (
+        <SlideGame key={runId} {...props} />
       ) : isTruthGame(id) ? (
         <TruthGame key={runId} {...props} />
       ) : (

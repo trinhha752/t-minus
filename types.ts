@@ -183,6 +183,8 @@ export interface TriviaAnswerRequest {
   roundId: string;
   questionId: string;
   choiceIndex: number;
+  /** The line whose Delay Boss is being fought, when a question's station is on several lines. */
+  line?: TeamLine;
 }
 
 export interface TriviaAnswerResult {

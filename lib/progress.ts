@@ -236,8 +236,10 @@ export async function startFinalBoss(
   const chapter = chapterById(chapterId);
   if (!chapter) throw new GameRuleError("unknown chapter");
 
+  // Demo fights (300 HP) skip the unlock in dev or demo mode, for showing the boss on stage.
+  const demoBypass = demo && (process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_DEMO_MODE === "1");
   const status = await chapterStatus(userId);
-  if (!status.get(chapterId)?.unlocked) {
+  if (!demoBypass && !status.get(chapterId)?.unlocked) {
     throw new GameRuleError("clear every station in this chapter first");
   }
 
@@ -262,11 +264,22 @@ export async function startFinalBoss(
     const multiplier = Math.min(MAX_DAMAGE_MULTIPLIER, 1 + bonus);
     const hp = demo ? FINAL_BOSS_DEMO_HP : FINAL_BOSS_HP;
 
+    // ON CONFLICT: two starts at once (a double tap, or React running an effect twice)
+    // both pass the check above; the second must resume the first, not crash.
     const fight = await c.query<FightRow>(
       `INSERT INTO final_boss_fights (user_id, chapter_id, hp_total, hp_remaining, damage_multiplier)
-       VALUES ($1, $2, $3, $3, $4) RETURNING *`,
+       VALUES ($1, $2, $3, $3, $4)
+       ON CONFLICT DO NOTHING
+       RETURNING *`,
       [userId, chapterId, hp, multiplier]
     );
+    if (!fight.rows[0]) {
+      const again = await c.query<FightRow>(
+        `SELECT * FROM final_boss_fights WHERE user_id = $1 AND chapter_id = $2 AND ended_at IS NULL`,
+        [userId, chapterId]
+      );
+      return toFight(again.rows[0], questions);
+    }
     if (buffs.rows.length) {
       await c.query(`UPDATE buffs SET used_in_fight_id = $1 WHERE id = ANY($2)`, [
         fight.rows[0].id,

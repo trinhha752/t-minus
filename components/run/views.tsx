@@ -13,8 +13,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Swords, TriangleAlert } from 'lucide-react'
 import { StationCard } from '@/components/cards/StationCard'
-import { DelayBoss } from './DelayBoss'
-import { EndBoss } from './EndBoss'
+import { DelayBoss, type LiveDelayBoss } from './DelayBoss'
+import { EndBoss, type LiveEndBoss } from './EndBoss'
+import { END_BOSS } from './stats'
+import { LINES } from './stations'
 import { GameFrame } from './GameFrame'
 import { MapScreen } from './MapScreen'
 import { ResultsScreen } from './ResultsScreen'
@@ -48,7 +50,7 @@ function useHere() {
     here.slug && !here.inRange && here.metres != null
       ? `Nearest station · ${(here.metres / 1000).toFixed(1)} km`
       : undefined
-  return { id, note, located: here.status === 'ready' }
+  return { id, note, located: here.status === 'ready', settled: here.status !== 'locating' }
 }
 
 /** Live next train each way at a station: MBTA direction 0 is our +1 along the line, 1 is -1. */
@@ -205,18 +207,79 @@ export function MapView() {
   )
 }
 
+/** This rider's real End Boss fight for their line's chapter (/api/final-boss/*). */
+function useLiveEndBoss(stationId: string, ready: boolean, demo: boolean, unlocked: boolean, runId: number) {
+  const [live, setLive] = useState<LiveEndBoss | null>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'none'>('loading')
+  const chapterId = stationById(stationId).lines[0]
+  useEffect(() => {
+    if (!ready) return
+    let alive = true
+    // The server only starts a real fight once the line is complete (or in a demo fight).
+    if (!demo && !unlocked) {
+      const t = setTimeout(() => alive && setStatus('none'), 0)
+      return () => {
+        alive = false
+        clearTimeout(t)
+      }
+    }
+    const post = (url: string, body: unknown) =>
+      fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+        .then((r) => r.json())
+        .catch(() => null)
+    void (async () => {
+      const r = await post('/api/final-boss/start', { chapterId, demo })
+      if (!alive) return
+      if (!r?.ok || !r.data.questions?.length) return setStatus('none')
+      const fight = r.data
+      setLive({
+        bossName: fight.bossName,
+        title: `Legendary · ${LINES[chapterId].realm}`,
+        hpTotal: fight.hpTotal,
+        hpStart: fight.hpRemaining,
+        questions: (fight.questions as { id: string; question: string; options: string[] }[]).map((q) => ({
+          id: q.id,
+          q: q.question,
+          answers: q.options,
+        })),
+        answer: async (questionId, choiceIndex) => {
+          const a = await post('/api/final-boss/answer', { fightId: fight.id, questionId, choiceIndex })
+          if (!a?.ok) return null
+          return {
+            correct: a.data.correct,
+            correctIndex: a.data.correctIndex,
+            damage: a.data.damage,
+            hpRemaining: a.data.hpRemaining,
+            combo: a.data.combo,
+          }
+        },
+        forfeit: () => void post('/api/final-boss/forfeit', { fightId: fight.id }),
+      })
+      setStatus('ready')
+    })()
+    return () => {
+      alive = false
+    }
+  }, [chapterId, ready, demo, unlocked, runId])
+  return { live, status }
+}
+
 export function EndBossView() {
   const router = useRouter()
-  const { runId, endBossHp, gold, addGold } = useRun()
+  const { runId, endBossHp, gold, played, refresh } = useRun()
+  const here = useHere()
+  const { live, status } = useLiveEndBoss(here.id, here.settled, endBossHp < END_BOSS.hp, lineComplete(here.id, played), runId)
+  if (status === 'loading') return <div className="absolute inset-0 tex-leather" />
   return (
     <>
       {/* Keyed on runId: each challenge is a fresh fight even though Next keeps this route alive. */}
       <EndBoss
-        key={runId}
+        key={`${runId}-${live ? 'live' : 'local'}`}
+        live={live ?? undefined}
         maxHp={endBossHp}
         gold={gold}
-        onExit={(earned) => {
-          addGold(earned)
+        onExit={() => {
+          void refresh() // the win bonus and badge are awarded on the server
           router.push('/')
         }}
       />
@@ -225,20 +288,98 @@ export function EndBossView() {
   )
 }
 
+const TEAM_OF: Record<string, 'Red' | 'Green' | 'Orange'> = { red: 'Red', green: 'Green', orange: 'Orange' }
+
+/**
+ * The real Delay Boss on the rider's line: its shared HP from /api/boss, questions from
+ * /api/trivia?line=, answers checked by /api/trivia/answer. In demo mode, "Simulate delay"
+ * starts one when the line isn't really late (/api/boss/simulate).
+ */
+function useLiveDelayBoss(stationId: string, ready: boolean) {
+  const [live, setLive] = useState<LiveDelayBoss | null>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'none'>('loading')
+  const line = TEAM_OF[stationById(stationId).lines[0]]
+  useEffect(() => {
+    if (!ready) return
+    let alive = true
+    const getBoss = async () =>
+      ((await fetch('/api/boss').then((r) => r.json()).catch(() => null))?.data ?? []).find(
+        (b: { line: string; active: boolean }) => b.line === line && b.active,
+      )
+    void (async () => {
+      let boss = await getBoss()
+      if (!boss && DEMO_MODE) {
+        await fetch('/api/boss/simulate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ line }),
+        }).catch(() => null)
+        boss = await getBoss()
+      }
+      const round = await fetch(`/api/trivia?line=${line}`).then((r) => r.json()).catch(() => null)
+      if (!alive) return
+      if (!boss || !round?.ok || !round.data.questions.length) return setStatus('none')
+      const roundId = round.data.roundId as string
+      setLive({
+        lineName: `${line} Line`,
+        delayLabel:
+          boss.avgDelaySeconds >= 60
+            ? `+${Math.round(boss.avgDelaySeconds / 60)} min`
+            : boss.lateTrains > 0
+              ? `${boss.lateTrains} trains late`
+              : 'Delayed',
+        hpTotal: boss.hpTotal,
+        hpStart: boss.hpRemaining,
+        questions: (round.data.questions as { id: string; question: string; options: string[] }[]).map((q) => ({
+          id: q.id,
+          q: q.question,
+          answers: q.options,
+        })),
+        answer: async (questionId, choiceIndex) => {
+          const r = await fetch('/api/trivia/answer', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ roundId, questionId, choiceIndex, line }),
+          })
+            .then((x) => x.json())
+            .catch(() => null)
+          if (!r?.ok) return null
+          return {
+            correct: r.data.correct,
+            correctIndex: r.data.correctIndex,
+            damage: r.data.bossDamage,
+            hpRemaining: r.data.bossHpRemaining,
+            combo: r.data.combo,
+          }
+        },
+      })
+      setStatus('ready')
+    })()
+    return () => {
+      alive = false
+    }
+  }, [line, ready])
+  return { live, status }
+}
+
 export function BossView() {
   const router = useRouter()
-  const { runId, bossIndex, gold, played, streak, addGold } = useRun()
+  const { runId, bossIndex, gold, played, streak, refresh } = useRun()
+  const here = useHere()
+  const { live, status } = useLiveDelayBoss(here.id, here.settled)
+  if (status === 'loading') return <div className="absolute inset-0 tex-leather" />
   return (
     <>
       {/* Keyed on runId: each delay is a fresh fight even though Next keeps this route alive. */}
       <DelayBoss
-        key={runId}
+        key={`${runId}-${live ? 'live' : 'local'}`}
+        live={live ?? undefined}
         bossIndex={bossIndex}
         gold={gold}
         played={played}
         streak={streak}
-        onExit={(earned) => {
-          addGold(earned)
+        onExit={() => {
+          void refresh() // points for a defeated boss are awarded on the server
           router.push('/')
         }}
       />

@@ -178,6 +178,15 @@ async function main() {
     check("progress: chapter shows defeated", r.body.data?.chapters?.find((c: any) => c.id === "red")?.bossDefeated === true);
   }
 
+  // Two starts at the same moment (double tap) must resume one fight, not crash.
+  const [s1, s2] = await Promise.all([
+    call("POST", "/api/final-boss/start", { chapterId: "orange", demo: true }),
+    call("POST", "/api/final-boss/start", { chapterId: "orange", demo: true }),
+  ]);
+  check("final boss: two simultaneous starts give the same fight", s1.body.ok && s2.body.ok && s1.body.data.id === s2.body.data.id,
+    `${s1.status}/${s2.status}`);
+  if (s1.body.ok) await call("POST", "/api/final-boss/forfeit", { fightId: s1.body.data.id });
+
   // Forfeit: a green fight can't start (not cleared), so forfeit a bogus id.
   r = await call("POST", "/api/final-boss/forfeit", { fightId: "0" });
   check("final boss: forfeiting a fight you don't have is a 400", r.status === 400);

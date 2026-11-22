@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowRight, Award, FlaskConical, Hammer, Map as MapIcon, Shield, Sparkles, Swords, X, Zap } from 'lucide-react'
 import { AnswerCard, CoinPill, type AnswerState } from './DelayBoss'
 import { EndBossArt, type EndMood, type Phase } from './EndBossArt'
@@ -16,6 +16,27 @@ const BOSS = {
   title: "Legendary · Scholars' Realm",
   taunt: '“This is the end of the line, scholar.”',
 }
+/**
+ * Live mode: this rider's real End Boss fight on the server (see EndBossView in views.tsx).
+ * Questions arrive without answers; each answer is checked there, and the server applies
+ * damage, combo and buffs. Hearts and items stay here: when hearts run out, `forfeit` ends it.
+ */
+export type LiveEndBoss = {
+  bossName: string
+  title: string
+  hpTotal: number
+  hpStart: number
+  questions: { id: string; q: string; answers: string[] }[]
+  answer: (
+    questionId: string,
+    choice: number,
+  ) => Promise<{ correct: boolean; correctIndex: number; damage: number; hpRemaining: number; combo: number } | null>
+  forfeit: () => void
+}
+
+/** The boss shown: the live one's name and title, or the Red Line's Iron Archivist. */
+const BossName = createContext(BOSS)
+
 const BASE_DMG = PLAYER.damage
 const BUFF = 1 + LOADOUT.shardBonus // Signal Shard
 const DMG = Math.round(BASE_DMG * BUFF)
@@ -62,6 +83,8 @@ type Snap = {
   tonic: boolean
   lastDmg: number
   dealt: number
+  /** Live mode: the correct choice, revealed by the server after answering. */
+  correctIdx?: number
 }
 
 const P = (s: Partial<Snap> & { state: EndState }): Snap => ({
@@ -100,21 +123,39 @@ const PREVIEWS: Record<EndState, Snap> = {
 
 export function EndBoss({
   preview,
-  maxHp = END_BOSS.hp,
+  maxHp: localMaxHp = END_BOSS.hp,
   gold = 0,
   onExit,
+  live,
 }: {
   preview?: EndState
+  /** The real server fight; omitted = the local demo fight. */
+  live?: LiveEndBoss
   /** Boss HP; lower it for demo mode. */
   maxHp?: number
   gold?: number
   /** Leave the fight; `goldEarned` is 0 when the player bails out. */
   onExit: (goldEarned: number) => void
 }) {
-  const [s, setS] = useState<Snap>(() => (preview ? PREVIEWS[preview] : P({ state: 'intro', hp: maxHp })))
+  const maxHp = live?.hpTotal ?? localMaxHp
+  const [s, setS] = useState<Snap>(() =>
+    preview ? PREVIEWS[preview] : P({ state: 'intro', hp: live?.hpStart ?? maxHp }),
+  )
+  const [busy, setBusy] = useState(false)
   const frozen = !!preview
   const phase = phaseOf(s.hp, maxHp)
-  const Q = QUESTIONS[s.q % QUESTIONS.length]
+  const liveQ = live && live.questions.length ? live.questions[s.q % live.questions.length] : null
+  const Q = liveQ ? { q: liveQ.q, answers: liveQ.answers, correct: s.correctIdx ?? -1 } : QUESTIONS[s.q % QUESTIONS.length]
+  const boss = live ? { ...BOSS, name: live.bossName, title: live.title } : BOSS
+
+  // Out of hearts in a live fight: end it on the server too (a fresh boss next time).
+  const forfeited = useRef(false)
+  useEffect(() => {
+    if (live && s.state === 'ko' && !forfeited.current) {
+      forfeited.current = true
+      live.forfeit()
+    }
+  }, [live, s.state])
   const mult = Math.min(s.combo + 1, PLAYER.maxCombo)
 
   // Live play: reveals auto-advance so the items bar can stay at the bottom.
@@ -125,7 +166,7 @@ export function EndBoss({
       const t = window.setTimeout(() => {
         setS((p) => {
           if (p.hp <= 0) return { ...p, state: 'victory' }
-          return { ...p, q: p.q + 1, picked: null }
+          return { ...p, q: p.q + 1, picked: null, correctIdx: undefined }
         })
       }, 1100)
       return () => window.clearTimeout(t)
@@ -136,7 +177,7 @@ export function EndBoss({
       setS((p) => {
         if (p.state === 'miss' && p.hearts <= 0) return { ...p, state: 'ko' }
         const advance = p.state === 'miss' || p.state === 'blocked' || p.state === 'phase'
-        return { ...p, state: 'fight', picked: null, q: advance ? p.q + 1 : p.q }
+        return { ...p, state: 'fight', picked: null, q: advance ? p.q + 1 : p.q, correctIdx: advance ? undefined : p.correctIdx }
       })
     }, d)
     return () => window.clearTimeout(t)
@@ -144,6 +185,26 @@ export function EndBoss({
 
   const pick = (i: number) => {
     if (frozen || s.state !== 'fight' || s.picked !== null) return
+    if (live && liveQ) {
+      if (busy) return
+      setBusy(true)
+      void live.answer(liveQ.id, i).then((r) => {
+        setBusy(false)
+        setS((p) => {
+          if (p.state !== 'fight' || p.picked !== null) return p
+          if (r?.correct) {
+            const hp = Math.max(0, r.hpRemaining)
+            const crossed = hp > 0 && phaseOf(hp, maxHp) !== phaseOf(p.hp, maxHp)
+            if (crossed) window.setTimeout(() => setS((x) => ({ ...x, state: 'phase', picked: null })), 900)
+            return { ...p, picked: i, correctIdx: i, hp, combo: r.combo, lastDmg: r.damage, dealt: p.dealt + (p.hp - hp) }
+          }
+          const correctIdx = r?.correctIndex ?? -1
+          if (p.shield) return { ...p, picked: i, correctIdx, shield: false, combo: 0, state: 'blocked' }
+          return { ...p, picked: i, correctIdx, hearts: p.hearts - 1, combo: 0, state: 'miss' }
+        })
+      })
+      return
+    }
     if (i === Q.correct) {
       const dmg = DMG * mult
       const hp = Math.max(0, s.hp - dmg)
@@ -164,7 +225,9 @@ export function EndBoss({
 
   if (s.state === 'intro')
     return (
+      <BossName value={boss}>
       <Intro s={s} frozen={frozen} onStart={() => !frozen && setS({ ...s, state: 'fight' })} onExit={() => onExit(0)} />
+      </BossName>
     )
 
   const isEnd = s.state === 'victory' || s.state === 'ko'
@@ -207,13 +270,13 @@ export function EndBoss({
           {/* Arena */}
           <Arena phase={effectivePhase} flash={s.state === 'phase'} frozen={frozen}>
             <p className="relative z-10 mt-2.5 text-center font-fantasy text-[10px] font-black tracking-[0.2em] text-[#E8D3A4]">
-              {BOSS.title.toUpperCase()}
+              {boss.title.toUpperCase()}
             </p>
             <h2
               className="relative z-10 mx-auto line-clamp-2 max-w-[300px] px-6 text-center font-fantasy text-[19px] font-black leading-[1.1] [text-shadow:0_2px_0_#000]"
               style={{ color: GOLD_LIGHT }}
             >
-              {BOSS.name}
+              {boss.name}
             </h2>
             <div className="absolute inset-x-0 bottom-[66px] top-[52px] flex items-center justify-center">
               <div className="relative">
@@ -290,7 +353,7 @@ export function EndBoss({
                     <AnswerCard
                       key={`${s.q}-${i}`}
                       compact
-                      letter={'ABC'[i]}
+                      letter={'ABCD'[i]}
                       text={a}
                       state={st}
                       damage={s.lastDmg}
@@ -703,6 +766,7 @@ function EndPanel({ s, onExit }: { s: Snap; onExit: (goldEarned: number) => void
 }
 
 function Intro({ s, frozen, onStart, onExit }: { s: Snap; frozen: boolean; onStart: () => void; onExit: () => void }) {
+  const BOSS = useContext(BossName)
   return (
     <div className="absolute inset-0 overflow-hidden bg-black">
       <div className={`absolute inset-0 tex-leather ${frozen ? '' : 'animate-fade-in [animation-duration:1.2s]'}`} />

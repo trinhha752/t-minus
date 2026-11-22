@@ -304,7 +304,7 @@ const LAMPS = [
   { name: 'STOP', on: '#FF4A3D', off: '#5A1E1A' },
   { name: 'SLOW', on: '#FFD24A', off: '#5A4A1A' },
   { name: 'GO', on: '#3FE07A', off: '#1A4A2A' },
-  { name: 'LUNAR', on: '#CFE9FF', off: '#33414F' },
+  { name: 'FAST', on: '#CFE9FF', off: '#33414F' },
 ]
 const SIGNAL_TRAIN = 60
 const START_LEN = 3
@@ -763,7 +763,19 @@ function PlatformDodge({ boss, bossIndex, line, onExit }: GameProps) {
           boss={boss}
           line={line}
           title="Platform Dodge"
-          rules={<>The boss is tearing up the platform. Dodge the falling debris (a red ! shows where it&apos;ll land) and grab the green power cells: each one zaps the boss. Beat it before your train arrives!</>}
+          rules={
+            <>
+              <span className="block">
+                Why the batteries? This boss is <b>feeding on the station&apos;s power</b>; that&apos;s what&apos;s stalling your
+                train. Every <b className="text-[#2F7A4A]">green power cell</b> you grab sends the power back down the rails
+                and <b>shocks the boss</b>.
+              </span>
+              <span className="mt-1.5 block">
+                Move left and right to grab the cells and dodge the falling debris (a red <b>!</b> shows where it&apos;ll land).
+                Drain the boss before your train arrives!
+              </span>
+            </>
+          }
           onStart={startFight}
         />
       )}

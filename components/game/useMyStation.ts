@@ -70,10 +70,11 @@ export const DEMO_MODE = process.env.NODE_ENV !== "production" || process.env.NE
 
 /* ---------- demo stations: "pretend I'm standing here" (dev / demo mode only) ---------- */
 
-/** One station per line for the stage demo: most verified trivia on each line, BU Central is the venue. */
+/** Stations for the stage demo: one per line (BU Central is the venue), plus Government Center for Slide Sneak. */
 export const DEMO_STATIONS = [
   { slug: "harvard", line: "red", label: "Harvard" },
   { slug: "bucentral", line: "green", label: "BU Central" },
+  { slug: "gov", line: "green", label: "Gov Center" },
   { slug: "chinatown", line: "orange", label: "Chinatown" },
 ] as const;
 

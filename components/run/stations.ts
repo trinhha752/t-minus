@@ -456,7 +456,7 @@ export const STATIONS: Station[] = [
     y: 552,
     label: { dx: -14, dy: 0, align: 'end' },
     story: "Chinatown's ornate gate, a gift from Taiwan, was dedicated in 1982.",
-    game: { title: 'Gate Keeper', genre: 'Pattern', time: '~45 sec' },
+    game: { title: 'Lion Dance', genre: 'Rhythm', time: '~40 sec' },
     fact: { no: 7, title: 'The Gate' },
   },
   {

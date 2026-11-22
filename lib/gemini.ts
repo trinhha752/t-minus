@@ -1,43 +1,54 @@
 // lib/gemini.ts
 // Photo check for photo quests, via the Gemini REST API (no SDK needed).
 //
-// FAILS OPEN: no key, an error, a timeout over 6s, or an answer we can't
-// parse all count as a pass. A verifier that blocks a judge's photo on stage
-// is worse than no verifier. The image is never written to disk or logged.
+// If Gemini can't answer (no key, rate limit, timeout), the photo does NOT count:
+// the player sees "checker busy" and can check again or reshoot. (It used to pass
+// automatically, which let wrong photos through whenever Gemini was busy.)
+// PHOTO_FAIL_OPEN=1 brings back the old auto-pass for a stage emergency.
+// The image is never written to disk or logged.
 
 /**
  * Models to try, in order. If one is overloaded (503), gone (404) or slow, the next
  * gets the remaining time. Tested 21 Nov 2026: gemini-3.8/3.7-flash timed out under
- * load, 3.6-flash answered in ~2.7s, 3.1-flash-lite in ~0.8s.
+ * load, 3.6-flash answered in ~2.7s, 3.1-flash-lite in ~0.8s (and got 10/10 on real
+ * photos with the strict prompt), so lite goes first; each model has its own rate limit.
  * Override with GEMINI_MODEL=model-a,model-b in .env.local.
  */
-const MODELS = (process.env.GEMINI_MODEL || "gemini-3.6-flash,gemini-3.1-flash-lite")
+const MODELS = (process.env.GEMINI_MODEL || "gemini-3.1-flash-lite,gemini-3.6-flash")
   .split(",")
   .map((m) => m.trim())
   .filter(Boolean);
 /** Whole check, all models together. */
-const TIMEOUT_MS = 6_000;
+const TIMEOUT_MS = 8_000;
 /** Most one model may take before we move on (the last model gets whatever is left). */
-const PER_MODEL_MS = 3_500;
+const PER_MODEL_MS = 4_500;
 const ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
 export interface PhotoVerdict {
   passed: boolean;
   reason: string;
-  /** false when we passed it without asking Gemini (fail-open). */
+  /** false when Gemini couldn't be asked or didn't answer. */
   checked: boolean;
+  /** Gemini was busy/unreachable: show "check again", not "wrong photo". */
+  busy?: boolean;
 }
 
-const OPEN = (why: string): PhotoVerdict => {
-  console.warn(`[photo-quest] couldn't check, counting it: ${why}`);
-  return { passed: true, reason: "couldn't check (checker busy)", checked: false };
+const FAIL_OPEN = process.env.PHOTO_FAIL_OPEN === "1";
+
+const UNCHECKED = (why: string): PhotoVerdict => {
+  if (FAIL_OPEN) {
+    console.warn(`[photo-quest] couldn't check, counting it (PHOTO_FAIL_OPEN): ${why}`);
+    return { passed: true, reason: "couldn't check (checker busy)", checked: false };
+  }
+  console.warn(`[photo-quest] couldn't check: ${why}`);
+  return { passed: false, reason: "the photo checker is busy", checked: false, busy: true };
 };
 
 /** Does this JPEG plausibly show `target`? */
 export async function verifyPhoto(target: string, jpegBase64: string): Promise<PhotoVerdict> {
   const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!key) return OPEN("no GOOGLE_GENERATIVE_AI_API_KEY");
+  if (!key) return UNCHECKED("no GOOGLE_GENERATIVE_AI_API_KEY");
 
   // Strict but fair: the target must really be there. Failing costs the player
   // nothing (free reshoots), while a wrong pass makes the quest meaningless.
@@ -63,7 +74,7 @@ export async function verifyPhoto(target: string, jpegBase64: string): Promise<P
     }
     reasons.push(`${model}: ${result.why}`);
   }
-  return OPEN(reasons.join("; ") || "no time left");
+  return UNCHECKED(reasons.join("; ") || "no time left");
 }
 
 type Attempt = { ok: true; verdict: PhotoVerdict } | { ok: false; why: string };

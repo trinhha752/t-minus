@@ -2,7 +2,8 @@
 //   -> { ok: true, data: { passed, reason } }
 // imageBase64 is a JPEG, raw base64 or a data: URL. The client resizes to
 // 768px first, so anything over ~1.5 MB is refused rather than sent on.
-// Fails open (see lib/gemini.ts). The image is never stored or logged.
+// If Gemini can't answer, it returns passed=false, busy=true (see lib/gemini.ts).
+// The image is never stored or logged.
 
 import { fail, ok, readJson } from "@/lib/respond";
 import { verifyPhoto } from "@/lib/gemini";
@@ -26,6 +27,6 @@ export async function POST(request: Request) {
   if (!/^[A-Za-z0-9+/=]+$/.test(base64.slice(0, 200))) return fail("imageBase64 is not base64");
 
   const verdict = await verifyPhoto(quest.target, base64);
-  // checked=false: Gemini couldn't be reached, so it counted without a check.
-  return ok({ passed: verdict.passed, reason: verdict.reason, checked: verdict.checked });
+  // busy: Gemini couldn't answer, so it didn't count; the player can check again.
+  return ok({ passed: verdict.passed, reason: verdict.reason, checked: verdict.checked, busy: verdict.busy ?? false });
 }

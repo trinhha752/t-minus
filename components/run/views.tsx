@@ -11,7 +11,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Swords, TriangleAlert } from 'lucide-react'
 import { StationCard } from '@/components/cards/StationCard'
 import { DelayBoss, type LiveDelayBoss } from './DelayBoss'
 import { DelayChart } from '@/components/game/DelayChart'
@@ -57,38 +56,62 @@ const TAB_HREF: Record<Tab, string> = { map: '/', bag: '/inventory', collection:
 // Stations where the End-of-Line Boss can be challenged. Only the Red Line boss exists so far.
 const END_OF_LINE = new Set(['alewife'])
 
-/** Stage-demo controls on the map: stand at one station per line, or start over. */
-function DemoControls({ here, onNewRider }: { here: string; onNewRider: () => void }) {
+/**
+ * Stage-demo controls, folded into one small "Demo" button so the map stays clear:
+ * stand at one station per line, simulate a delay, open the End Boss, start over.
+ */
+function DemoMenu({
+  onNewRider,
+  onSimulateDelay,
+  onFinalBoss,
+}: {
+  onNewRider: () => void
+  onSimulateDelay: () => void
+  onFinalBoss: () => void
+}) {
   const demo = useDemoStation()
-  const chip =
-    'border-2 border-ink px-1.5 py-1 font-pixel text-[11px] font-bold leading-none shadow-[2px_2px_0_#1B1F24] active:translate-x-px active:translate-y-px active:shadow-none'
+  const [open, setOpen] = useState(false)
+  const here = DEMO_STATIONS.find((d) => d.slug === demo)
+  const row = 'flex w-full items-center gap-2 px-2.5 py-1.5 text-left font-pixel text-[13px] hover:bg-[#F1E7CF] active:bg-[#E9DCC0]'
+  const pick = (fn: () => void) => () => {
+    setOpen(false)
+    fn()
+  }
   return (
-    <div className="absolute left-4 right-4 top-[236px] z-20 flex flex-wrap items-center gap-1.5 border-2 border-ink bg-[#F1E7CF] px-2 py-1.5 shadow-[3px_3px_0_rgba(27,31,36,0.85)]">
-      <span className="font-pixel text-[11px] font-bold text-muted">DEMO · stand at</span>
-      {DEMO_STATIONS.map((d) => {
-        const on = demo === d.slug
-        return (
-          <button
-            key={d.slug}
-            type="button"
-            onClick={() => setDemoStation(on ? null : d.slug)}
-            className={`${chip} ${on ? 'text-white' : 'bg-[#FBF3DF] text-ink'}`}
-            style={on ? { backgroundColor: LINES[d.line].color } : { borderLeft: `6px solid ${LINES[d.line].color}` }}
-            aria-pressed={on}
-            title={on ? 'Back to my real location' : `Pretend you're at ${d.label}`}
-          >
-            {d.label}
-          </button>
-        )
-      })}
-      {demo && here === demo && (
-        <button type="button" onClick={() => setDemoStation(null)} className={`${chip} bg-[#FBF3DF] text-ink`}>
-          📍 Real
-        </button>
-      )}
-      <button type="button" onClick={onNewRider} className={`${chip} bg-[#FBF3DF] text-ink`}>
-        ↺ New rider
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex h-8 items-center gap-1 border-2 border-ink bg-[#FBF3DF] px-2 font-pixel text-[12px] font-bold shadow-[2px_2px_0_#1B1F24] active:translate-x-px active:translate-y-px active:shadow-none"
+      >
+        🛠 Demo{here ? ` · ${here.label}` : ''} {open ? '▴' : '▾'}
       </button>
+      {open && (
+        <div className="absolute left-0 top-10 z-30 w-[220px] border-2 border-ink bg-[#FBF3DF] py-1 shadow-[3px_3px_0_rgba(27,31,36,0.85)]">
+          <p className="px-2.5 pb-0.5 pt-1 font-pixel text-[10px] font-bold uppercase tracking-wide text-muted">Stand at</p>
+          {DEMO_STATIONS.map((d) => (
+            <button key={d.slug} type="button" onClick={pick(() => setDemoStation(demo === d.slug ? null : d.slug))} className={row}>
+              <span className="h-3 w-3 border-2 border-ink" style={{ backgroundColor: LINES[d.line].color }} />
+              {d.label}
+              {demo === d.slug && <span className="ml-auto">✓</span>}
+            </button>
+          ))}
+          <button type="button" onClick={pick(() => setDemoStation(null))} className={row}>
+            📍 My real location{!demo && <span className="ml-auto">✓</span>}
+          </button>
+          <div className="my-1 border-t-2 border-ink/15" />
+          <button type="button" onClick={pick(onSimulateDelay)} className={row}>
+            ⚠️ Simulate delay
+          </button>
+          <button type="button" onClick={pick(onFinalBoss)} className={row}>
+            ⚔️ Final boss
+          </button>
+          <button type="button" onClick={pick(onNewRider)} className={row}>
+            ↺ New rider
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -156,7 +179,7 @@ function useWhereNext(here: string, played: Set<string>): WhereNext {
 
 function MapLayer() {
   const router = useRouter()
-  const { played, streak, gold, startEndBoss, newRider } = useRun()
+  const { played, streak, gold, startEndBoss, startBoss, newRider } = useRun()
   const here = useHere()
   const [conductorOpen, setConductorOpen] = useState(false)
   const whereNext = useWhereNext(here.id, played)
@@ -176,15 +199,32 @@ function MapLayer() {
         }}
         onSelect={(id) => router.push(`/station/${id}`)}
       />
-      {DEMO_MODE && <DemoControls here={here.id} onNewRider={() => void newRider()} />}
-      {/* The Conductor: a Mastra agent on Gemini that checks live trains and Tiger Data for you */}
-      <button
-        type="button"
-        onClick={() => setConductorOpen(true)}
-        className="absolute right-4 top-[318px] z-20 flex items-center gap-1.5 border-2 border-ink bg-[#1B1F24] px-2.5 py-1.5 font-pixel text-[13px] font-bold text-[#FFD23F] shadow-[3px_3px_0_rgba(27,31,36,0.85)] active:translate-x-px active:translate-y-px active:shadow-none"
-      >
-        💬 Ask the Conductor
-      </button>
+      {/* One compact row under the line chips: demo tools (dev / demo mode) and the Conductor */}
+      <div className="absolute inset-x-4 top-[170px] z-20 flex items-start justify-between gap-2">
+        {DEMO_MODE ? (
+          <DemoMenu
+            onNewRider={() => void newRider()}
+            onSimulateDelay={() => {
+              startBoss()
+              router.push('/boss')
+            }}
+            onFinalBoss={() => {
+              startEndBoss(true)
+              router.push('/final-boss')
+            }}
+          />
+        ) : (
+          <span />
+        )}
+        {/* The Conductor: a Mastra agent on Gemini that checks live trains and Tiger Data for you */}
+        <button
+          type="button"
+          onClick={() => setConductorOpen(true)}
+          className="flex h-8 items-center gap-1 border-2 border-ink bg-[#1B1F24] px-2 font-pixel text-[12px] font-bold text-[#FFD23F] shadow-[2px_2px_0_rgba(27,31,36,0.85)] active:translate-x-px active:translate-y-px active:shadow-none"
+        >
+          💬 Conductor
+        </button>
+      </div>
       {conductorOpen && <ConductorChat stationId={here.id} onClose={() => setConductorOpen(false)} />}
       <StatusBar />
       <BottomNav tab="map" onChange={(t) => router.push(TAB_HREF[t])} />
@@ -226,37 +266,10 @@ export function ProfileView() {
 }
 
 export function MapView() {
-  const router = useRouter()
-  const { startBoss, startEndBoss } = useRun()
   return (
     <>
+      {/* Demo triggers (Simulate delay, Final boss) live in the "Demo" menu in MapLayer. */}
       <MapLayer />
-      {/* Demo triggers. Later the delay boss opens when /api/boss reports an active delay,
-          and the real End-of-Line Boss starts from Alewife's card. */}
-      <div className="absolute inset-x-4 top-[170px] z-10 flex justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            startBoss()
-            router.push('/boss')
-          }}
-          className="flex h-8 items-center gap-1.5 rounded-full border-2 border-[#F6D47E] bg-[#DA291C] px-2.5 font-fantasy text-[11px] font-black tracking-[0.04em] text-white shadow-[0_3px_0_#6E120B] active:translate-y-[2px]"
-        >
-          <TriangleAlert size={13} strokeWidth={2.8} />
-          Simulate delay
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            startEndBoss(true)
-            router.push('/final-boss')
-          }}
-          className="flex h-8 items-center gap-1.5 rounded-full border-2 border-[#F6D47E] bg-[#1B1F24] px-2.5 font-fantasy text-[11px] font-black tracking-[0.04em] text-[#F6D47E] shadow-[0_3px_0_#000] active:translate-y-[2px]"
-        >
-          <Swords size={13} strokeWidth={2.8} />
-          Final boss (demo)
-        </button>
-      </div>
       <HomeIndicator />
     </>
   )

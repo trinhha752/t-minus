@@ -2,6 +2,7 @@
 
 // One client view per route in the run flow:
 //   /                         MapView
+//   /inventory                InventoryView (the Bag tab: items, loadout and the Station Shop)
 //   /station/[id]             StationView  (map with the station card open)
 //   /station/[id]/play        PlayView     (Harvard: Two Truths and a Lie)
 //   /station/[id]/results     ResultsView
@@ -20,6 +21,7 @@ import { ResultsScreen } from './ResultsScreen'
 import { useRun } from './RunProvider'
 import { CURRENT_STATION, NEXT_STATION, stationById, type Station } from './stations'
 import { MATCH_GAME, MatchGame } from './MatchGame'
+import { Inventory } from './Inventory'
 
 /** Stations with their own hand-made game; every other station plays Landmark Match for now. */
 const HAS_OWN_GAME = new Set(['harvard'])
@@ -27,7 +29,7 @@ const withGame = (s: Station): Station => (HAS_OWN_GAME.has(s.id) ? s : { ...s, 
 import { BottomNav, HomeIndicator, StatusBar, type Tab } from './ui'
 
 // Collection and Profile screens aren't ported yet; both go to the /profile stub.
-const TAB_HREF: Record<Tab, string> = { map: '/', collection: '/profile', profile: '/profile' }
+const TAB_HREF: Record<Tab, string> = { map: '/', bag: '/inventory', collection: '/profile', profile: '/profile' }
 
 // Stations where the End-of-Line Boss can be challenged. Only the Red Line boss exists so far.
 const END_OF_LINE = new Set(['alewife'])
@@ -40,6 +42,17 @@ function MapLayer() {
       <MapScreen played={played} streak={streak} gold={gold} onSelect={(id) => router.push(`/station/${id}`)} />
       <StatusBar />
       <BottomNav tab="map" onChange={(t) => router.push(TAB_HREF[t])} />
+    </>
+  )
+}
+
+export function InventoryView() {
+  const router = useRouter()
+  const { gold, owned, equipped, equip, unequip, buy } = useRun()
+  return (
+    <>
+      <Inventory gold={gold} owned={owned} equipped={equipped} onEquip={equip} onUnequip={unequip} onBuy={buy} />
+      <BottomNav tab="bag" onChange={(t) => router.push(TAB_HREF[t])} />
     </>
   )
 }

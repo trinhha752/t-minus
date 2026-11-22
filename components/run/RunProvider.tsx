@@ -8,6 +8,7 @@ import { BOSSES } from './DelayBoss'
 import { END_BOSS } from './stats'
 import { CURRENT_STATION, INITIAL_PLAYED } from './stations'
 import type { GameResult } from './GameFrame'
+import { LOADOUT_SLOTS, itemById } from './items'
 
 type Run = {
   played: Set<string>
@@ -27,6 +28,15 @@ type Run = {
   endBossHp: number
   startEndBoss: (demo: boolean) => void
   addGold: (amount: number) => void
+  /** Item ids the rider owns (mock until /api/me has an inventory). */
+  owned: string[]
+  /** The battle loadout: one item id (or null) per slot. */
+  equipped: (string | null)[]
+  /** Put an item in the first empty loadout slot. Returns false when the loadout is full. */
+  equip: (id: string) => boolean
+  unequip: (id: string) => void
+  /** Buy a shop item with gold. Returns false when it's unaffordable or already owned. */
+  buy: (id: string) => boolean
 }
 
 const RunContext = createContext<Run | null>(null)
@@ -61,6 +71,25 @@ export function RunProvider({ children }: { children: ReactNode }) {
 
   const addGold = (amount: number) => setGold((g) => g + amount)
 
+  const [owned, setOwned] = useState(['badge', 'shield', 'tonic', 'spike', 'feather', 'ticket', 'shard'])
+  // Starts with the End-of-Line Boss's loadout
+  const [equipped, setEquipped] = useState<(string | null)[]>(['badge', 'shield', 'tonic'])
+  const equip = (id: string) => {
+    if (equipped.includes(id)) return true
+    const free = equipped.indexOf(null)
+    if (free < 0 || equipped.length > LOADOUT_SLOTS) return false
+    setEquipped(equipped.map((e, i) => (i === free ? id : e)))
+    return true
+  }
+  const unequip = (id: string) => setEquipped((eq) => eq.map((e) => (e === id ? null : e)))
+  const buy = (id: string) => {
+    const price = itemById(id)?.price
+    if (!price || owned.includes(id) || gold < price) return false
+    setGold((g) => g - price)
+    setOwned((o) => [...o, id])
+    return true
+  }
+
   return (
     <RunContext
       value={{
@@ -76,6 +105,11 @@ export function RunProvider({ children }: { children: ReactNode }) {
         endBossHp,
         startEndBoss,
         addGold,
+        owned,
+        equipped,
+        equip,
+        unequip,
+        buy,
       }}
     >
       {children}

@@ -12,6 +12,7 @@ import {
   User,
   Wifi,
   Layers,
+  Backpack,
 } from 'lucide-react'
 import { LINES, type LineId, type Station } from './stations'
 import { HARVARD_PHOTOS } from './harvardPhotos'
@@ -122,11 +123,12 @@ export function MiniFactCard({
   )
 }
 
-export type Tab = 'map' | 'collection' | 'profile'
+export type Tab = 'map' | 'bag' | 'collection' | 'profile'
 
 export function BottomNav({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   const items: { id: Tab; label: string; icon: ReactNode }[] = [
     { id: 'map', label: 'Map', icon: <MapIcon size={22} strokeWidth={2.3} /> },
+    { id: 'bag', label: 'Bag', icon: <Backpack size={22} strokeWidth={2.3} /> },
     { id: 'collection', label: 'Collection', icon: <Layers size={22} strokeWidth={2.3} /> },
     { id: 'profile', label: 'Profile', icon: <User size={22} strokeWidth={2.3} /> },
   ]
@@ -144,7 +146,7 @@ export function BottomNav({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => v
                 type="button"
                 onClick={() => onChange(it.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`flex h-[52px] min-w-[88px] flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-semibold transition-colors ${
+                className={`flex h-[52px] min-w-[76px] flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-semibold transition-colors ${
                   active ? 'text-ink' : 'text-muted'
                 }`}
               >

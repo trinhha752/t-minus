@@ -19,8 +19,8 @@ import { StatusBar } from './ui'
 export const MATCH_GAME = { title: 'Landmark Match', genre: 'Memory', time: '~45 sec' }
 
 const PAIRS = 4
-const PEEK_MS = 3000 // how long every card shows at the start
-const MISMATCH_MS = 750 // how long a wrong pair stays face up
+const PEEK_MS = 5000 // how long every card shows at the start
+const MISMATCH_MS = 1000 // how long a wrong pair stays face up
 
 // Pixel HUD look, matching the map: square corners, dark outline, hard drop shadow.
 const PANEL = 'border-[3px] border-ink bg-[#FBF3DF] shadow-[4px_4px_0_rgba(27,31,36,0.85)]'
@@ -48,18 +48,28 @@ function shuffle<T>(list: T[], rand: () => number) {
   return out
 }
 
-/** This station plus its nearest neighbors along the tracks it is on. */
+/** This station plus its nearest neighbors by stops along the tracks, walking through
+ *  junctions (Fenway's short D-branch stub continues on past Kenmore). */
 function pickStations(station: Station): Station[] {
-  const dist = new Map<string, number>()
-  for (const t of TRACKS) {
-    const i = t.ids.indexOf(station.id)
-    if (i < 0) continue
+  const next = new Map<string, Set<string>>()
+  const link = (a: string, b: string) => next.set(a, (next.get(a) ?? new Set()).add(b))
+  for (const t of TRACKS)
     t.ids.forEach((id, j) => {
-      if (id !== station.id) dist.set(id, Math.min(dist.get(id) ?? Infinity, Math.abs(i - j)))
+      if (j > 0) {
+        link(id, t.ids[j - 1])
+        link(t.ids[j - 1], id)
+      }
     })
+  const picked: string[] = []
+  let ring = [station.id]
+  const seen = new Set(ring)
+  while (picked.length < PAIRS - 1 && ring.length) {
+    const out = [...new Set(ring.flatMap((id) => [...(next.get(id) ?? [])]))].filter((id) => !seen.has(id)).sort()
+    out.forEach((id) => seen.add(id))
+    picked.push(...out.slice(0, PAIRS - 1 - picked.length))
+    ring = out
   }
-  const near = [...dist.entries()].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0])).map(([id]) => byId.get(id)!)
-  return [station, ...near.slice(0, PAIRS - 1)]
+  return [station, ...picked.map((id) => byId.get(id)!)]
 }
 
 type Card = { key: string; pair: string; kind: 'pic' | 'name' }
@@ -77,7 +87,7 @@ const goldFor = (misses: number) => PAIRS * 40 + ([80, 50, 25][misses] ?? 0)
 
 // ---------- Pixel art ----------
 
-function PixelSprite({ sprite, scale, extra }: { sprite: Sprite; scale: number; extra?: Record<string, string> }) {
+export function PixelSprite({ sprite, scale, extra }: { sprite: Sprite; scale: number; extra?: Record<string, string> }) {
   const pal = { ...BASE_PAL, ...sprite.pal, ...extra }
   const w = sprite.rows[0].length
   const h = sprite.rows.length
@@ -120,13 +130,17 @@ function CardFace({ card, matched }: { card: Card; matched: boolean }) {
   const line = LINES[s.lines[0]]
   const border = matched ? 'border-[#F2B233]' : 'border-ink'
   if (card.kind === 'pic') {
+    const photo = LANDMARK_INFO[s.id]?.photo
     return (
-      <div className={`relative flex h-full w-full flex-col items-center justify-end overflow-hidden border-[3px] bg-[#CFE7F5] ${border}`}>
-        <div className="mb-[10px]">
-          <PixelSprite sprite={LANDMARKS[s.id] ?? STATION} scale={4} extra={{ R: line.color, r: line.dark }} />
-        </div>
-        {/* ground strip */}
-        <span className="absolute inset-x-0 bottom-0 h-[10px] bg-[#7CB652]" />
+      <div className={`relative h-full w-full overflow-hidden border-[3px] bg-[#CFE7F5] ${border}`}>
+        {photo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- small local photos, no optimizer needed
+          <img src={photo.src} alt="" draggable={false} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full items-end justify-center pb-2">
+            <PixelSprite sprite={LANDMARKS[s.id] ?? STATION} scale={4} extra={{ R: line.color, r: line.dark }} />
+          </div>
+        )}
         {matched && <MatchedBadge />}
       </div>
     )
@@ -239,7 +253,7 @@ export function MatchGame({
 
   const describe = (c: Card) => {
     const s = byId.get(c.pair)!
-    return c.kind === 'pic' ? `Landmark of ${s.name}` : `Name: ${s.name}`
+    return c.kind === 'pic' ? `Photo: ${LANDMARK_INFO[s.id]?.name ?? s.name} (${s.name})` : `Name: ${s.name}`
   }
 
   const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
@@ -282,14 +296,14 @@ export function MatchGame({
       {/* Stats */}
       <div className="absolute inset-x-4 top-[126px] z-10 flex gap-2 font-pixel text-[15px] font-bold">
         <span className="flex h-9 flex-1 items-center justify-center gap-1.5 border-2 border-ink bg-[#FBF3DF] shadow-[3px_3px_0_rgba(27,31,36,0.85)]">
-          Pairs <span className="tabular-nums">{matched.size}/{PAIRS}</span>
+          Pairs <span className="font-sans font-extrabold tabular-nums">{matched.size}/{PAIRS}</span>
         </span>
         <span className="flex h-9 flex-1 items-center justify-center gap-1.5 border-2 border-ink bg-[#FBF3DF] shadow-[3px_3px_0_rgba(27,31,36,0.85)]">
-          Misses <span className="tabular-nums">{misses}</span>
+          Misses <span className="font-sans font-extrabold tabular-nums">{misses}</span>
         </span>
         <span className="flex h-9 flex-1 items-center justify-center gap-1.5 border-2 border-ink bg-[#FBF3DF] shadow-[3px_3px_0_rgba(27,31,36,0.85)]">
           <Timer size={15} strokeWidth={2.8} />
-          <span className="tabular-nums">{time}</span>
+          <span className="font-sans font-extrabold tabular-nums">{time}</span>
         </span>
       </div>
 
@@ -297,7 +311,7 @@ export function MatchGame({
       <p className="absolute inset-x-4 top-[178px] z-10 text-center font-pixel text-[15px] font-bold text-[#FBF3DF]">
         {phase === 'peek' ? (
           <>
-            Memorize! <span className="text-[#F2B233]">{peekLeft}</span>
+            Memorize! <span className="font-sans font-extrabold tabular-nums text-[#F2B233]">{peekLeft}</span>
           </>
         ) : (
           'Match each landmark to its station'
@@ -361,12 +375,15 @@ function BuildingFact({ id }: { id: string | null }) {
   const line = LINES[s.lines[0]]
   return (
     <div key={id} className={`absolute inset-x-4 top-[706px] flex animate-pop items-start gap-3 p-2.5 ${PANEL}`}>
-      <span className="flex h-[52px] w-[52px] shrink-0 items-end justify-center border-2 border-ink bg-[#CFE7F5] pb-0.5">
-        <PixelSprite sprite={LANDMARKS[s.id] ?? STATION} scale={2} extra={{ R: line.color, r: line.dark }} />
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element -- small local photos, no optimizer needed */}
+      <img src={info.photo.src} alt="" className="h-[60px] w-[72px] shrink-0 border-2 border-ink object-cover" />
       <div className="min-w-0">
-        <p className="font-pixel text-[15px] font-bold leading-tight">{info.name}</p>
+        <p className="flex items-center gap-1.5 font-pixel text-[15px] font-bold leading-tight">
+          <span className="h-3 w-1.5 shrink-0" style={{ backgroundColor: line.color }} aria-hidden />
+          {info.name}
+        </p>
         <p className="mt-0.5 text-[12.5px] leading-snug text-ink-soft">{info.fact}</p>
+        <p className="mt-0.5 truncate text-[9.5px] text-muted">{info.photo.credit}</p>
       </div>
     </div>
   )
@@ -391,9 +408,23 @@ function Results({
   return (
     <div className="absolute inset-0 z-30 flex animate-fade-in items-center justify-center bg-[#0F1318]/70 px-5">
       <div role="dialog" aria-modal="true" aria-labelledby="match-done" className={`w-full animate-pop p-4 ${PANEL}`}>
-        <div className="flex justify-center">
-          <PixelSprite sprite={LANDMARKS[station.id] ?? STATION} scale={5} extra={{ R: line.color, r: line.dark }} />
-        </div>
+        {LANDMARK_INFO[station.id] ? (
+          <figure>
+            {/* eslint-disable-next-line @next/next/no-img-element -- small local photos, no optimizer needed */}
+            <img
+              src={LANDMARK_INFO[station.id].photo.src}
+              alt={LANDMARK_INFO[station.id].name}
+              className="h-[120px] w-full border-[3px] border-ink object-cover"
+            />
+            <figcaption className="mt-0.5 truncate text-right text-[9.5px] text-muted">
+              {LANDMARK_INFO[station.id].photo.credit}
+            </figcaption>
+          </figure>
+        ) : (
+          <div className="flex justify-center">
+            <PixelSprite sprite={LANDMARKS[station.id] ?? STATION} scale={5} extra={{ R: line.color, r: line.dark }} />
+          </div>
+        )}
         {LANDMARK_INFO[station.id] && (
           <div className="mt-2 text-center">
             <p className="font-pixel text-[14px] font-bold text-ink">{LANDMARK_INFO[station.id].name}</p>
@@ -405,13 +436,13 @@ function Results({
         <h2 id="match-done" className="mt-3.5 text-center font-pixel text-[28px] font-bold leading-none">
           {verdict}
         </h2>
-        <p className="mt-1.5 text-center font-pixel text-[14px] text-muted">
+        <p className="mt-1.5 text-center font-sans text-[14px] font-semibold text-muted">
           {time} · {misses} {misses === 1 ? 'miss' : 'misses'}
         </p>
 
         <div className="mt-4 flex items-center justify-center gap-2 border-2 border-ink bg-[#FFE7A3] py-2">
           <Coin size={24} />
-          <span className="font-pixel text-[24px] font-bold tabular-nums text-[#7A4D0E]">+{gold}</span>
+          <span className="font-sans text-[24px] font-extrabold tabular-nums text-[#7A4D0E]">+{gold}</span>
           <span className="font-pixel text-[14px] text-[#7A4D0E]">gold</span>
         </div>
 

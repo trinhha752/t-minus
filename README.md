@@ -234,6 +234,17 @@ Still mock (the shape is final, the data is not): `/api/chat`.
 - `npm test`: unit tests for the boss detector, scoring, and check-in distance. No database or network needed.
 - `npm run test:api`: with `npm run dev` running, plays one fresh rider through every live route and prints PASS or FAIL for each check. Set `BASE=https://...` to test a deployed server.
 
+### Deploy (Vultr, HTTPS)
+
+Phones only allow the camera and GPS over HTTPS, so the photo quest and location check-in need the deployed site.
+1. Create an Ubuntu 24.04 server on Vultr (2 GB RAM or more) with your SSH key. Point your domain's A record at its IP, or skip the domain and use `<ip-with-dashes>.sslip.io`.
+2. Once, on the server as root: `bash setup-server.sh <domain>` (copy it there with `scp deploy/setup-server.sh root@<ip>:`). This installs Node 22, Caddy (automatic HTTPS), the `tminus-web` and `tminus-poller` services, the firewall and swap.
+3. From your laptop, whenever you want to deploy: `bash deploy/push.sh root@<ip>`. It copies the code and `.env.local` over SSH, builds, and restarts both services.
+4. Stop the poller on your laptop once the server's poller is running.
+5. **Pass condition:** open `https://<domain>` on a real phone, allow location and camera, and complete a photo quest.
+
+Don't run `next build` while `npm run dev` is running locally: they share `.next`, and that breaks the dev server (stale CSS, endless reloads). If it happens: stop dev, `rm -rf .next`, start again.
+
 ### Backend scripts
 
 | Command | Does |

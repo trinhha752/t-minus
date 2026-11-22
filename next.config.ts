@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   // Your laptop's Wi-Fi address changes per network; add it here (no port). The
   // trycloudflare.com entry is for a quick public tunnel (npx cloudflared tunnel ...).
   // localhost and 127.0.0.1 are listed too: without them, the page on localhost got stuck reloading.
-  allowedDevOrigins: ["localhost", "127.0.0.1", "10.239.204.186", "**.trycloudflare.com"],
+  allowedDevOrigins: ["localhost", "127.0.0.1", "10.239.204.186", "10.239.21.145", "**.trycloudflare.com"],
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

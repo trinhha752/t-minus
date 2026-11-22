@@ -24,22 +24,22 @@ export const LION_GAME = { title: 'Lion Dance', genre: 'Rhythm', time: '~40 sec'
 
 const W = 361
 const H = 480
-const BPM = 104
+const BPM = 92
 const BEAT = 60000 / BPM
 /** Four beats of count-in before the first arrow. */
 const COUNT_IN = 4 * BEAT
 const BARS = 12
 const SONG_END = COUNT_IN + BARS * 4 * BEAT
 /** How long you get to grab the lettuce, and how many taps it takes. */
-const LETTUCE_MS = 3200
+const LETTUCE_MS = 4500
 const LETTUCE_TAPS = 10
 
 const TRACK_Y = 372
 const HIT_X = 56
-const TRAVEL = 1500
-const PERFECT_MS = 60
-const GOOD_MS = 115
-const WINDOW_MS = 160
+const TRAVEL = 1900
+const PERFECT_MS = 85
+const GOOD_MS = 160
+const WINDOW_MS = 220
 /** Where Perfect/Good/Miss pop up: the open street to the lion's right. */
 const JUDGE_X = 285
 const JUDGE_Y = 318
@@ -57,7 +57,7 @@ const DIRS: { key: string[]; color: string; label: string }[] = [
 
 type Note = { at: number; dir: Dir; state: 'live' | 'hit' | 'miss'; doneAt: number }
 
-/** The dance: easy steps on the beat at first, then eighth notes, doubles and runs. */
+/** The dance: easy left/right steps on the beat at first, then all four arrows, never faster than one per beat. */
 function chart(): Note[] {
   const notes: Note[] = []
   const add = (beat: number, dir: Dir) => notes.push({ at: COUNT_IN + beat * BEAT, dir, state: 'live', doneAt: 0 })
@@ -66,27 +66,18 @@ function chart(): Note[] {
   const ALL: Dir[] = [0, 1, 2, 3]
   for (let bar = 0; bar < BARS; bar++) {
     const b = bar * 4
-    if (bar < 2) {
+    if (bar < 3) {
+      // Warm-up: left/right on beats 1 and 3
       add(b, rnd(LR))
       add(b + 2, rnd(LR))
-    } else if (bar < 5) {
+    } else if (bar < 6) {
+      // Left/right on every beat, up/down now and then
       for (let k = 0; k < 4; k++) add(b + k, rnd(k === 3 ? ALL : LR))
-    } else if (bar < 8) {
-      for (let k = 0; k < 4; k++) {
-        const d = rnd(ALL)
-        add(b + k, d)
-        if (k === 1 || (k === 3 && Math.random() < 0.5)) add(b + k + 0.5, d)
-      }
+    } else if (bar < 9) {
+      for (let k = 0; k < 4; k++) add(b + k, rnd(ALL))
     } else {
-      // Runs around the arrows and quick doubles
-      const run = Math.random() < 0.5 ? ([0, 1, 2, 3] as Dir[]) : ([3, 2, 1, 0] as Dir[])
-      if (bar % 2 === 0) for (let k = 0; k < 8; k++) add(b + k / 2, run[k % 4])
-      else
-        for (let k = 0; k < 4; k++) {
-          const d = rnd(ALL)
-          add(b + k, d)
-          if (k % 2 === 0) add(b + k + 0.5, rnd(ALL))
-        }
+      // The finale: three beats on, one beat off, so there's always a breather (no quick doubles)
+      for (let k = 0; k < 3; k++) add(b + k, rnd(ALL))
     }
   }
   return notes
@@ -512,7 +503,12 @@ export function LionGame({
               <p className="font-pixel text-[25px] font-bold leading-tight">Lead the lion dance!</p>
               <p className="mt-1.5 text-[13px] leading-snug text-ink-soft">
                 Arrows slide along the drum track. Press the matching arrow as each one reaches the drum, right on the beat. Build a
-                combo for firecrackers, and at the end, tap fast to rear up and grab the lettuce!
+                combo for firecrackers!
+              </p>
+              <p className="mt-1.5 border-2 border-ink bg-[#E9F7EC] px-2 py-1.5 text-left text-[12.5px] leading-snug">
+                <b>Why the lettuce?</b> Shops hang lettuce with a red envelope over the door at New Year. In Cantonese, &ldquo;lettuce&rdquo;
+                (<i>saang choi</i>) sounds like &ldquo;growing wealth.&rdquo; When the lion grabs it, it brings the shop good luck for the
+                year, and the lion keeps the red envelope. At the end, <b>tap fast</b> to rear up and grab it!
               </p>
               <button
                 type="button"
@@ -575,10 +571,12 @@ function Results({ station, result, lineColor, onPlayAgain, onMap }: { station: 
           </h2>
         </div>
         <p className="mt-1.5 text-center text-[13px] leading-snug text-ink-soft">
-          {result.grabbed
-            ? 'The lion grabbed the lettuce and the crowd cheered. Good luck for the new year!'
-            : pct >= 60
-              ? 'The crowd loved it, but the lettuce got away this time.'
+          {pct >= 60
+            ? result.grabbed
+              ? 'The lion grabbed the lettuce and the crowd cheered. Good luck for the new year!'
+              : 'The crowd loved it, but the lettuce got away this time.'
+            : result.grabbed
+              ? 'The lion kept tripping over the beat, but it still snatched the lettuce at the end!'
               : 'The lion kept tripping over the beat. The crowd wandered off to get dumplings.'}
         </p>
         <p className="mt-1 text-center text-[13px] font-semibold text-muted">

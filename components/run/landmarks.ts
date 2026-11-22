@@ -188,4 +188,101 @@ export const LANDMARK_INFO: Record<string, LandmarkInfo> = {
     fact: 'Moved into its Huntington Avenue building in 1909. It holds nearly 500,000 works of art.',
     photo: { src: '/art/landmarks/mfa.jpg', credit: "Photo: ajay_suresh / Wikimedia Commons, CC BY 4.0" },
   },
+  // Orange Line
+  sullivan: {
+    name: "Schrafft's Building",
+    fact: "This brick tower was the Schrafft's candy factory, built in the 1920s. Its sign still glows over Charlestown.",
+    photo: { src: '/art/landmarks/sullivan.jpg', credit: "Photo: Ethan Long / Wikimedia Commons, CC BY-SA 2.0" },
+  },
+  ccollege: {
+    name: "Bunker Hill Monument",
+    fact: "A 221-foot granite obelisk for the 1775 battle. You can climb its 294 steps to the top.",
+    photo: { src: '/art/landmarks/ccollege.jpg', credit: "Photo: Rhododendrites / Wikimedia Commons, CC BY-SA 4.0" },
+  },
+  state: {
+    name: "Old State House",
+    fact: "Built in 1713, Boston's oldest public building. The Declaration of Independence was read from its balcony.",
+    photo: { src: '/art/landmarks/state.jpg', credit: "Photo: The Other 95% / Wikimedia Commons, CC BY 4.0" },
+  },
+  chinatown: {
+    name: "Chinatown Gate",
+    fact: "A gift from Taiwan in 1982. Its sign says \"All under heaven is for the good of the people.\"",
+    photo: { src: '/art/landmarks/chinatown.jpg', credit: "Photo: 4300streetcar / Wikimedia Commons, CC BY 4.0" },
+  },
+  backbay: {
+    name: "Hancock Tower",
+    fact: "Boston's tallest building at 790 feet. Soon after it opened, its windows started falling out, so all were replaced.",
+    photo: { src: '/art/landmarks/backbay.jpg', credit: "Photo: Fletcher / Wikimedia Commons, CC BY 4.0" },
+  },
+  ruggles: {
+    name: "Southwest Corridor Park",
+    fact: "Land cleared for a highway in the 1960s became the Orange Line and a long park instead.",
+    photo: { src: '/art/landmarks/ruggles.jpg', credit: "Photo: Grk1011 / Wikimedia Commons, CC BY-SA 3.0" },
+  },
+  foresthills: {
+    name: "Arnold Arboretum",
+    fact: "Harvard's 281-acre tree museum, founded in 1872. It's free and open every day.",
+    photo: { src: '/art/landmarks/foresthills.jpg', credit: "Photo: TanRo / Wikimedia Commons, CC BY-SA 4.0" },
+  },
+  // Red Line south: Ashmont (A) and Braintree (Br) branches
+  broadway: {
+    name: "Fort Independence",
+    fact: "A star-shaped granite fort from the mid-1800s that guarded Boston Harbor. Southie walks laps around it.",
+    photo: { src: '/art/landmarks/broadway.jpg', credit: "Photo: victorgrigas / Wikimedia Commons, CC BY-SA 3.0" },
+  },
+  andrew: {
+    name: "54th Regiment Memorial",
+    fact: "Honors the 54th Massachusetts, one of the first Black regiments in the Civil War. It took 14 years to sculpt.",
+    photo: { src: '/art/landmarks/andrew.jpg', credit: "Photo: Lynn.steven / Wikimedia Commons, CC BY-SA 4.0" },
+  },
+  jfk: {
+    name: "JFK Presidential Library",
+    fact: "Designed by I. M. Pei and opened in 1979, with a tall glass pavilion looking out over the harbor.",
+    photo: { src: '/art/landmarks/jfk.jpg', credit: "Photo: Larry D. Moore / Wikimedia Commons, CC BY 4.0" },
+  },
+  savin: {
+    name: "Savin Hill Park",
+    fact: "From the top of the hill you can look across Dorchester Bay to downtown Boston.",
+    photo: { src: '/art/landmarks/savin.jpg', credit: "Photo: ButteBag / Wikimedia Commons, CC BY-SA 4.0" },
+  },
+  fields: {
+    name: "Fields Corner murals",
+    fact: "Fields Corner is full of Vietnamese shops and restaurants, and its walls are covered in big murals.",
+    photo: { src: '/art/landmarks/fields.jpg', credit: "Photo: Sswonk / Wikimedia Commons, CC0" },
+  },
+  shawmut: {
+    name: "Dorchester triple-deckers",
+    fact: "Three-family houses with stacked porches, built by the thousands around 1900 as streetcars reached Dorchester.",
+    photo: { src: '/art/landmarks/shawmut.jpg', credit: "Photo: Pi.1415926535 / Wikimedia Commons, CC BY-SA 4.0" },
+  },
+  ashmont: {
+    name: "Mattapan trolley",
+    fact: "Orange streetcars from the 1940s still carry riders between Ashmont and Mattapan.",
+    photo: { src: '/art/landmarks/ashmont.jpg', credit: "Photo: 4300streetcar / Wikimedia Commons, CC BY 4.0" },
+  },
+  nquincy: {
+    name: "Marina Bay",
+    fact: "A boardwalk of restaurants and boats, built where a Navy air station stood during World War II.",
+    photo: { src: '/art/landmarks/nquincy.jpg', credit: "Photo: Sswonk / Wikimedia Commons, CC BY 3.0" },
+  },
+  wollaston: {
+    name: "Wollaston Beach",
+    fact: "The biggest beach in Boston Harbor, with over two miles of sand along Quincy Bay.",
+    photo: { src: '/art/landmarks/wollaston.jpg', credit: "Photo: Unknown author / Wikimedia Commons, Public domain" },
+  },
+  quincy: {
+    name: "Church of the Presidents",
+    fact: "Built in 1828 from Quincy granite. John Adams and John Quincy Adams are buried in its crypt.",
+    photo: { src: '/art/landmarks/quincy.jpg', credit: "Photo: Daderot at en.wikipedia / Wikimedia Commons, CC BY-SA 3.0" },
+  },
+  qadams: {
+    name: "Adams birthplaces",
+    fact: "Two small saltbox farmhouses just 75 feet apart, where both Adams presidents were born.",
+    photo: { src: '/art/landmarks/qadams.jpg', credit: "Photo: Daderot at English Wikipedia / Wikimedia Commons, CC BY-SA 3.0" },
+  },
+  braintree: {
+    name: "Braintree Town Hall",
+    fact: "John Adams was born in Braintree in 1735. His part of town later split off and became Quincy.",
+    photo: { src: '/art/landmarks/braintree.jpg', credit: "Photo: John Phelan / Wikimedia Commons, CC BY 3.0" },
+  },
 }

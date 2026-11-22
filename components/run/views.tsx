@@ -22,6 +22,8 @@ import { useRun } from './RunProvider'
 import { CURRENT_STATION, stationById, type Station } from './stations'
 import { MATCH_GAME, MatchGame } from './MatchGame'
 import { Inventory } from './Inventory'
+import { Collection } from './Collection'
+import { ProfileScreen } from './Profile'
 
 /** Stations with their own hand-made game; every other station plays Landmark Match for now. */
 const HAS_OWN_GAME = new Set(['harvard'])
@@ -33,7 +35,7 @@ import type { WhereNext } from './MapScreen'
 import type { Arrival } from '@/types'
 
 // Collection and Profile screens aren't ported yet; both go to the /profile stub.
-const TAB_HREF: Record<Tab, string> = { map: '/', bag: '/inventory', collection: '/profile', profile: '/profile' }
+const TAB_HREF: Record<Tab, string> = { map: '/', bag: '/inventory', collection: '/collection', profile: '/profile' }
 
 // Stations where the End-of-Line Boss can be challenged. Only the Red Line boss exists so far.
 const END_OF_LINE = new Set(['alewife'])
@@ -140,6 +142,28 @@ export function InventoryView() {
     <>
       <Inventory gold={gold} owned={owned} equipped={equipped} onEquip={equip} onUnequip={unequip} onBuy={buy} />
       <BottomNav tab="bag" onChange={(t) => router.push(TAB_HREF[t])} />
+    </>
+  )
+}
+
+export function CollectionView() {
+  const router = useRouter()
+  const { played } = useRun()
+  return (
+    <>
+      <Collection played={played} />
+      <BottomNav tab="collection" onChange={(t) => router.push(TAB_HREF[t])} />
+    </>
+  )
+}
+
+export function ProfileView() {
+  const router = useRouter()
+  const { gold, streak, played } = useRun()
+  return (
+    <>
+      <ProfileScreen gold={gold} streak={streak} played={played} />
+      <BottomNav tab="profile" onChange={(t) => router.push(TAB_HREF[t])} />
     </>
   )
 }

@@ -418,7 +418,10 @@ const PALETTES: Record<Zone, string[]> = {
   [Zone.Campus]: ['#A64B32', '#B65A3F', '#C9B28A', '#D6D0C4', '#9E4B34'],
   [Zone.Industrial]: ['#9A958C', '#A8A296', '#8C8A84', '#B7AE9C'],
 }
-const HOUSE_ROOFS = ['#6B6560', '#7A5A4A', '#5E6670', '#6F5E52']
+const HOUSE_ROOFS = ['#6B6560', '#7A5A4A', '#5E6670', '#6F5E52', '#8E3B2E', '#3F5A4A', '#4A5A7A', '#9A6A3A']
+// Triple-deckers come in bright paint
+const DECKER_WALLS = ['#E6D28F', '#A9C8D8', '#E8DCC4', '#C9D9B0', '#E8B9A0', '#D8C8E8']
+const AWNINGS = ['#C0392B', '#2F7A4A', '#2F6FD1', '#E07B22', '#7B3FC4']
 const CARS = ['#C0392B', '#2F6FD1', '#E8E4DA', '#3A3A3A', '#F2C03A', '#7F8C8D']
 
 /** True when a footprint sits entirely on buildable ground. */
@@ -479,6 +482,130 @@ function tree(x: number, y: number): Drawable {
   return { depth: sy, draw: (ctx) => drawSprite(ctx, TREE, Math.round(sx), Math.round(sy) + 1) }
 }
 
+const mid = (p: Pt, q: Pt): Pt => [Math.round((p[0] + q[0]) / 2), Math.round((p[1] + q[1]) / 2)]
+
+/** A house with a pitched roof (ridge along its long side) and sometimes a chimney. */
+function house(x0: number, y0: number, x1: number, y1: number, h: number, wall: string, roof: string, chimney: boolean): Drawable {
+  const [a, b, c, d] = corners(x0, y0, x1, y1)
+  const rise = 3
+  const up = (p: Pt, k = h): Pt => [p[0], p[1] - k]
+  const ridgeAlongX = x1 - x0 >= y1 - y0
+  // Ridge ends, lifted above the wall tops
+  const [r1, r2] = ridgeAlongX ? [mid(a, d), mid(b, c)] : [mid(a, b), mid(d, c)]
+  const R1 = up(r1, h + rise)
+  const R2 = up(r2, h + rise)
+  const box = building(x0, y0, x1, y1, h, wall, wall, 3)
+  return {
+    depth: box.depth,
+    draw: (ctx) => {
+      box.draw(ctx)
+      if (ridgeAlongX) {
+        fillPoly(ctx, [up(a), up(b), R2, R1], shade(roof, -0.25)) // back slope
+        fillPoly(ctx, [up(b), up(c), R2], shade(wall, -0.32)) // gable end, east wall
+        fillPoly(ctx, [up(d), up(c), R2, R1], roof) // front slope
+      } else {
+        fillPoly(ctx, [up(a), up(d), R2, R1], shade(roof, 0.12)) // west slope
+        fillPoly(ctx, [up(d), up(c), R2], wall) // gable end, front wall
+        fillPoly(ctx, [up(b), up(c), R2, R1], shade(roof, -0.25)) // east slope, in shade
+      }
+      // Front door
+      const door = mid(d, c)
+      ctx.fillStyle = shade(wall, -0.55)
+      ctx.fillRect(door[0], door[1] - 2, 1, 2)
+      if (chimney) {
+        const [cx, cy] = mid(R1, up(ridgeAlongX ? d : a, h))
+        ctx.fillStyle = '#7A4A3A'
+        ctx.fillRect(cx, cy - 3, 2, 3)
+        ctx.fillStyle = '#4A2E24'
+        ctx.fillRect(cx, cy - 3, 2, 1)
+      }
+    },
+  }
+}
+
+/** Something flat on the ground (courts, fields), drawn under everything standing on it. */
+function flat(x0: number, y0: number, x1: number, y1: number, paint: (ctx: CanvasRenderingContext2D, poly: Pt[]) => void): Drawable {
+  const poly = corners(x0, y0, x1, y1)
+  return { depth: Math.min(...poly.map((p) => p[1])) - 1, draw: (ctx) => paint(ctx, poly) }
+}
+
+/** A church steeple: a square tower with a pointed spire. */
+function steeple(x: number, y: number, h: number, wall: string): Drawable {
+  const box = building(x, y, x + 2.4, y + 2.4, h, wall, shade(wall, 0.2), 99)
+  const [a, b, c, d] = corners(x, y, x + 2.4, y + 2.4)
+  const top = mid(a, c)
+  return {
+    depth: box.depth + 0.5,
+    draw: (ctx) => {
+      box.draw(ctx)
+      const apex: Pt = [top[0], top[1] - h - 9]
+      fillPoly(ctx, [[d[0], d[1] - h], [c[0], c[1] - h], apex], '#5E6670')
+      fillPoly(ctx, [[c[0], c[1] - h], [b[0], b[1] - h], apex], '#454C55')
+      ctx.fillStyle = '#F2B233'
+      ctx.fillRect(apex[0], apex[1] - 2, 1, 2)
+      // Belfry window
+      const f = mid(d, c)
+      ctx.fillStyle = '#2A2522'
+      ctx.fillRect(f[0], f[1] - h + 2, 1, 2)
+    },
+  }
+}
+
+/** A low corner store with a striped awning over the front. */
+function shop(x0: number, y0: number, x1: number, y1: number, wall: string, awning: string): Drawable {
+  const box = building(x0, y0, x1, y1, 5, wall, '#8C8780', 99)
+  const [, , c, d] = corners(x0, y0, x1, y1)
+  return {
+    depth: box.depth,
+    draw: (ctx) => {
+      box.draw(ctx)
+      const len = Math.round(Math.hypot(c[0] - d[0], c[1] - d[1]))
+      for (let k = 0; k <= len; k++) {
+        const t = k / Math.max(1, len)
+        const px = Math.round(d[0] + (c[0] - d[0]) * t)
+        const py = Math.round(d[1] + (c[1] - d[1]) * t)
+        ctx.fillStyle = k % 2 ? '#F6EEDC' : awning
+        ctx.fillRect(px, py - 4, 1, 2)
+        ctx.fillStyle = k % 3 === 1 ? '#FFE29A' : '#5B6B7C' // shop window
+        ctx.fillRect(px, py - 2, 1, 1)
+      }
+    },
+  }
+}
+
+const court = (x0: number, y0: number, x1: number, y1: number) =>
+  flat(x0, y0, x1, y1, (ctx, poly) => {
+    fillPoly(ctx, poly, '#C9824F')
+    const m1 = mid(poly[0], poly[3])
+    const m2 = mid(poly[1], poly[2])
+    ctx.strokeStyle = '#F6EEDC'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    poly.forEach(([x, y], i) => (i ? ctx.lineTo(x + 0.5, y + 0.5) : ctx.moveTo(x + 0.5, y + 0.5)))
+    ctx.closePath()
+    ctx.moveTo(m1[0] + 0.5, m1[1] + 0.5)
+    ctx.lineTo(m2[0] + 0.5, m2[1] + 0.5)
+    ctx.stroke()
+  })
+
+const ballfield = (x0: number, y0: number, x1: number, y1: number) =>
+  flat(x0, y0, x1, y1, (ctx, poly) => {
+    fillPoly(ctx, poly, '#6FAF46')
+    const s = Math.min(x1 - x0, y1 - y0)
+    // Infield diamond from the near corner
+    const hx = x0 + 1.5
+    const hy = y1 - 1.5
+    const diamond = [
+      [hx, hy],
+      [hx + s * 0.45, hy],
+      [hx + s * 0.45, hy - s * 0.45],
+      [hx, hy - s * 0.45],
+    ].map(([x, y]) => project(x, y).map(Math.round) as Pt)
+    fillPoly(ctx, diamond, '#D9A866')
+    ctx.fillStyle = '#F6EEDC'
+    for (const [x, y] of diamond) ctx.fillRect(x, y, 1, 1)
+  })
+
 function parkingLot(x0: number, y0: number, x1: number, y1: number): Drawable {
   const poly = corners(x0, y0, x1, y1)
   return {
@@ -514,34 +641,94 @@ function block(bx: number, by: number, out: Drawable[]) {
 
   switch (zone) {
     case Zone.Houses: {
-      // Four good-sized houses per block, each pushed toward its street corner, with yards
-      // and big trees in the middle of the block, like Somerville or Cambridge from above.
-      const lot = size / 2
-      for (let i = 0; i < 2; i++) {
-        for (let j = 0; j < 2; j++) {
-          const lx = x0 + i * lot
-          const ly = y0 + j * lot
-          if (r(1, lx, ly) < 0.1) {
-            plant(lx + lot / 2, ly + lot / 2)
-            continue
-          }
-          const w = lot * (0.56 + r(2, lx, ly) * 0.16)
-          const dpt = lot * (0.5 + r(3, lx, ly) * 0.16)
-          // Front of the house near the street, backyard toward the middle of the block
-          const ox = i === 0 ? lx + 1 : lx + lot - 1 - w
-          const oy = j === 0 ? ly + 1 : ly + lot - 1 - dpt
-          const wall = r(7, lx, ly) < 0.7 ? pick(pal.slice(0, 4), r(29, lx, ly)) : pick(pal, r(7, lx, ly))
-          add(ox, oy, ox + w, oy + dpt, 6 + Math.floor(r(6, lx, ly) * 4), wall, pick(HOUSE_ROOFS, r(8, lx, ly)), 3)
-          // A street tree out front sometimes
-          if (r(9, lx, ly) < 0.35) plant(i === 0 ? lx + 0.4 : lx + lot - 0.4, ly + lot / 2)
-        }
-      }
-      // Backyards in the middle of the block
+      // Mostly houses with yards, but every so often a block is something else, so the
+      // neighborhoods don't read as one pattern stamped over and over.
+      const kind = r(40)
       const cx = x0 + size / 2
       const cy = y0 + size / 2
+      if (kind < 0.06) {
+        // Playground: a court and shade trees
+        if (buildable(x0 + 2, y0 + 2, x0 + size * 0.6, y0 + size * 0.55)) out.push(court(x0 + 2, y0 + 2, x0 + size * 0.6, y0 + size * 0.55))
+        plant(x0 + size * 0.8, y0 + size * 0.3)
+        plant(x0 + size * 0.3, y0 + size * 0.8)
+        plant(x0 + size * 0.75, y0 + size * 0.78)
+        break
+      }
+      if (kind < 0.1) {
+        // Ball field with a few trees along the edge
+        if (buildable(x0 + 1, y0 + 1, x0 + size - 1, y0 + size - 1)) out.push(ballfield(x0 + 1, y0 + 1, x0 + size - 1, y0 + size - 1))
+        plant(x0 + size - 1.5, y0 + 1.5)
+        plant(x0 + size - 1.5, y0 + size * 0.5)
+        break
+      }
+      if (kind < 0.15) {
+        // Church: a long nave with a steeple out front, trees in the churchyard
+        const stone = r(41) < 0.5 ? '#E8E2D4' : '#B8AE9C'
+        if (buildable(x0 + 4, y0 + 4, x0 + 11, y0 + 15)) {
+          out.push(house(x0 + 4, y0 + 4, x0 + 11, y0 + 15, 8, stone, '#5E6670', false))
+          out.push(steeple(x0 + 6.3, y0 + 15, 16, stone))
+        }
+        plant(x0 + size - 3, y0 + 4)
+        plant(x0 + size - 4, y0 + size - 4)
+        break
+      }
+      if (kind < 0.22) {
+        // Corner shops along one street, a house behind
+        const w = (size - 1) / 3
+        for (let i = 0; i < 3; i++) {
+          const sx = x0 + 0.5 + i * w
+          if (buildable(sx, y0 + size - 6, sx + w - 0.4, y0 + size - 0.5))
+            out.push(shop(sx, y0 + size - 6, sx + w - 0.4, y0 + size - 0.5, pick(pal, r(42, sx, y0)), pick(AWNINGS, r(43, sx, y0))))
+        }
+        const hw = size * 0.3
+        if (buildable(x0 + 1, y0 + 1, x0 + 1 + hw, y0 + 1 + hw * 0.9))
+          out.push(house(x0 + 1, y0 + 1, x0 + 1 + hw, y0 + 1 + hw * 0.9, 7, pick(pal, r(44)), pick(HOUSE_ROOFS, r(45)), true))
+        plant(x0 + size - 3, y0 + 3)
+        break
+      }
+      if (kind < 0.27) {
+        // School: an L of red brick and a playing field
+        const brick = '#A64B32'
+        add(x0 + 1, y0 + 1, x0 + size - 1, y0 + 6, 8, brick, '#6B6560', 3)
+        add(x0 + 1, y0 + 6, x0 + 7, y0 + size - 8, 8, brick, '#6B6560', 3)
+        if (buildable(x0 + 9, y0 + 8, x0 + size - 1, y0 + size - 1)) out.push(ballfield(x0 + 9, y0 + 8, x0 + size - 1, y0 + size - 1))
+        break
+      }
+
+      // Houses: two, three or four per block, each pushed toward its street corner, with
+      // big trees in the backyards. Some are tall flat-roofed triple-deckers.
+      const lot = size / 2
+      const count = kind < 0.45 ? 2 : kind < 0.7 ? 3 : 4
+      const lots: [number, number][] =
+        count === 2 ? (r(46) < 0.5 ? [[0, 0], [1, 1]] : [[1, 0], [0, 1]]) : [[0, 0], [1, 0], [0, 1], [1, 1]]
+      const skip = count === 3 ? Math.floor(r(47) * 4) : -1
+      lots.forEach(([i, j], n) => {
+        if (n === skip) return
+        const lx = x0 + i * lot
+        const ly = y0 + j * lot
+        const decker = r(48, lx, ly) < 0.22
+        const big = count === 2 ? 0.12 : 0
+        const w = lot * (decker ? 0.45 : 0.56 + big + r(2, lx, ly) * 0.16)
+        const dpt = lot * (decker ? 0.62 : 0.5 + big + r(3, lx, ly) * 0.16)
+        const ox = i === 0 ? lx + 1 : lx + lot - 1 - w
+        const oy = j === 0 ? ly + 1 : ly + lot - 1 - dpt
+        if (!buildable(ox, oy, ox + w, oy + dpt)) return
+        if (decker) {
+          out.push(building(ox, oy, ox + w, oy + dpt, 11 + Math.floor(r(6, lx, ly) * 2), pick(DECKER_WALLS, r(7, lx, ly)), '#7E776B', 3))
+        } else {
+          const wall = r(7, lx, ly) < 0.7 ? pick(pal.slice(0, 4), r(29, lx, ly)) : pick(pal, r(7, lx, ly))
+          out.push(house(ox, oy, ox + w, oy + dpt, 5 + Math.floor(r(6, lx, ly) * 3), wall, pick(HOUSE_ROOFS, r(8, lx, ly)), r(49, lx, ly) < 0.4))
+        }
+        if (r(9, lx, ly) < 0.35) plant(i === 0 ? lx + 0.4 : lx + lot - 0.4, ly + lot / 2)
+      })
+      // Backyard trees; more of them when there are fewer houses
       plant(cx - 1.5, cy)
       if (r(30) < 0.7) plant(cx + 2, cy + 1.5)
-      if (r(31) < 0.4) plant(cx, cy - 2.5)
+      if (count < 4 || r(31) < 0.4) plant(cx, cy - 2.5)
+      if (count === 2) {
+        plant(cx + 3, cy - 3)
+        plant(cx - 3, cy + 3)
+      }
       break
     }
     case Zone.Rows: {

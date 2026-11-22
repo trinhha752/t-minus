@@ -71,6 +71,8 @@ export default function PhotoQuest({
   const [phase, setPhase] = useState<Phase>("starting");
   const [photo, setPhoto] = useState<string | null>(null);
   const [reason, setReason] = useState("");
+  /** The checker couldn't answer (busy/offline): offer "check again", not "wrong photo". */
+  const [busy, setBusy] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -132,8 +134,9 @@ export default function PhotoQuest({
   };
 
   const verify = async (dataUrl: string) => {
-    let passed = true;
-    let why = "couldn't check (offline)";
+    let passed = false;
+    let why = "couldn't reach the photo checker";
+    let isBusy = true;
     try {
       const res = await fetch("/api/photo-quest/verify", {
         method: "POST",
@@ -144,12 +147,14 @@ export default function PhotoQuest({
       if (body.ok) {
         passed = body.data.passed;
         why = body.data.reason;
+        isBusy = body.data.busy === true;
       }
-      // Any non-ok response fails open, same as the server.
+      // A non-ok response or no connection: not a pass, offer "check again".
     } catch {
-      /* offline: fail open */
+      /* offline */
     }
     setReason(why);
+    setBusy(!passed && isBusy);
     if (passed) {
       setPhase("passed");
       chime(audioRef.current);
@@ -159,9 +164,18 @@ export default function PhotoQuest({
     }
   };
 
+  /** Same photo, ask again (after "checker busy"). */
+  const checkAgain = () => {
+    if (!photo) return;
+    setBusy(false);
+    setPhase("checking");
+    void verify(photo);
+  };
+
   const reshoot = () => {
     setPhoto(null);
     setReason("");
+    setBusy(false);
     setPhase("starting");
     startCamera();
   };
@@ -228,7 +242,7 @@ export default function PhotoQuest({
 
         {phase === "failed" && (
           <p className="absolute inset-x-0 bottom-6 text-center text-lg font-semibold drop-shadow">
-            {reason ? `${reason}. ` : ""}Try another angle!
+            {busy ? "The photo checker is busy. Check again in a few seconds." : `${reason ? `${reason}. ` : ""}Try another angle!`}
           </p>
         )}
 
@@ -280,9 +294,20 @@ export default function PhotoQuest({
           />
         )}
         {phase === "failed" && (
-          <button onClick={reshoot} className="rounded-lg px-6 py-3 text-lg font-bold" style={{ background: color }}>
-            Reshoot
-          </button>
+          <div className="flex gap-3">
+            {busy && (
+              <button onClick={checkAgain} className="rounded-lg px-6 py-3 text-lg font-bold" style={{ background: color }}>
+                Check again
+              </button>
+            )}
+            <button
+              onClick={reshoot}
+              className={`rounded-lg px-6 py-3 text-lg font-bold ${busy ? "border-2 border-white/40" : ""}`}
+              style={busy ? undefined : { background: color }}
+            >
+              Reshoot
+            </button>
+          </div>
         )}
         {phase === "passed" && (
           <button onClick={() => finish({ passed: true, dataUrl: photo })} className="rounded-lg px-6 py-3 text-lg font-bold" style={{ background: color }}>

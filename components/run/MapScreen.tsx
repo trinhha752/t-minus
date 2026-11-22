@@ -69,7 +69,7 @@ export function MapScreen({
   chrome?: boolean
   /** The station the player is at (from their real location). Defaults to the demo station. */
   currentId?: string
-  /** Replaces "You're at · realm" when the player isn't at a station, e.g. "Nearest · 0.9 km". */
+  /** Replaces "You're at · <line>" when the player isn't at a station, e.g. "Nearest · 0.9 km". */
   hereNote?: string
   /** Where to ride next after this station is stamped; null when the whole line is stamped. */
   nextId?: string | null
@@ -129,6 +129,10 @@ export function MapScreen({
             {(Object.keys(ROUTES) as LineId[]).map((line) => (
               <div
                 key={line}
+                // No realm name: three lines don't fit on a phone. The color and icon say which
+                // line it is; the full name stays in the tooltip and for screen readers.
+                title={`${LINES[line].name} · ${LINES[line].realm}: ${progress(line)} stations`}
+                aria-label={`${LINES[line].name}, ${LINES[line].realm}: ${progress(line)} stations stamped`}
                 className="flex h-9 min-w-0 flex-1 items-center gap-1.5 border-2 border-ink bg-[#FBF3DF] pr-2 shadow-[3px_3px_0_rgba(27,31,36,0.85)]"
               >
                 <span
@@ -137,10 +141,7 @@ export function MapScreen({
                 >
                   <RealmIcon line={line} size={14} />
                 </span>
-                <span className="flex-1 truncate font-pixel text-[13px] font-medium leading-tight">
-                  {LINES[line].realm}
-                </span>
-                <span className="font-pixel text-[13px] font-bold tabular-nums text-muted">{progress(line)}</span>
+                <span className="flex-1 text-center font-pixel text-[15px] font-bold tabular-nums text-ink">{progress(line)}</span>
               </div>
             ))}
           </div>
@@ -233,7 +234,7 @@ export function MapScreen({
                   <RealmIcon line={currentLine} size={22} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-pixel text-[13px] text-muted">{hereNote ?? `You're at · ${LINES[currentLine].realm}`}</p>
+                  <p className="truncate font-pixel text-[13px] text-muted">{hereNote ?? `You're at · ${LINES[currentLine].name}`}</p>
                   <p className="font-pixel text-[22px] font-bold leading-tight">{current.name}</p>
                 </div>
                 <button

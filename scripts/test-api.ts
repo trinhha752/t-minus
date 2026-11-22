@@ -69,6 +69,31 @@ async function main() {
     r.body.ok && r.body.data.stampedStationIds.includes("place-pktrm") && r.body.data.points > 0,
     `${r.body.data?.points} pts, stamps ${r.body.data?.stampedStationIds?.join(",")}`);
 
+  // Tiger Data: delay history from the continuous aggregates
+  r = await call("GET", "/api/delays?line=Orange&hours=3");
+  check("delays: Orange history from late_share_5m", r.body.ok && r.body.data.points.length > 0 && typeof r.body.data.points[0].latePct === "number",
+    `${r.body.data?.points?.length} buckets, ${r.body.data?.stats?.snapshotRows} rows, ${r.body.data?.stats?.compressionSavedPct}% compressed`);
+  r = await call("GET", "/api/delays?line=Purple");
+  check("delays: unknown line is a 400", r.status === 400);
+
+  // Gemini names the live Delay Boss (200 with a name, or 404 if no boss / Gemini busy)
+  r = await call("GET", "/api/boss/persona?line=Orange");
+  check("persona: a named boss or a clean 404", (r.status === 200 && typeof r.body.data?.name === "string") || r.status === 404,
+    r.status === 200 ? `"${r.body.data.name}": ${r.body.data.taunt}` : "no boss or Gemini busy");
+  r = await call("GET", "/api/boss/persona?line=Purple");
+  check("persona: unknown line is a 400", r.status === 400);
+
+  // The Conductor (Mastra agent on Gemini): an answer, or a clean 503 if Gemini is busy
+  r = await call("POST", "/api/chat", { stationId: "harvard", message: "When is the next train here?" });
+  check("conductor: answers with live tools (or 503 if Gemini is busy)",
+    (r.status === 200 && r.body.data.text.length > 0 && Array.isArray(r.body.data.toolsUsed)) || r.status === 503,
+    r.status === 200 ? `tools: ${r.body.data.toolsUsed.join(", ")}` : "Gemini busy");
+  r = await call("POST", "/api/chat", { stationId: "harvard" });
+  check("conductor: missing message is a 400", r.status === 400);
+  r = await call("POST", "/api/plan-ride", { stationId: "harvard" });
+  check("plan-ride workflow: a plan", r.body.ok && typeof r.body.data.narration === "string" && ["low", "medium", "high"].includes(r.body.data.delayRisk),
+    r.body.ok ? `go to ${r.body.data.goTo}, risk ${r.body.data.delayRisk}` : r.body.error);
+
   // Leaderboard
   r = await call("GET", "/api/leaderboard?scope=line");
   check("leaderboard: four teams ranked", r.body.ok && r.body.data.rows.length === 4 && r.body.data.rows[0].rank === 1,

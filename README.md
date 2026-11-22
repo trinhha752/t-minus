@@ -228,6 +228,33 @@ curl "localhost:3000/api/trivia?line=Red"                     # Delay Boss quest
 
 Still mock (the shape is final, the data is not): `/api/chat`.
 
+### Mastra: The Conductor
+
+An AI guide in the game ("💬 Ask the Conductor" on the map), built with **Mastra** (`mastra/`):
+- **Agent** (`mastra/agents/conductor.ts`): runs on Gemini (`gemini-3.1-flash-lite`, falling back to `gemini-3.6-flash`), and decides which **tools** to call:
+  - `get-next-trains` (live MBTA)
+  - `get-line-delays` (Tiger Data continuous aggregates)
+  - `get-delay-boss`
+  - `get-rider-progress` (stamps, End Bosses, next stop each direction, where to switch lines)
+  - `get-station-info` (story, fact, mini-game, photo quest)
+
+  It never invents a train time or delay.
+- **Memory:** message history plus **working memory** (home station, favorite line, goal), per rider. It's stored in **Tiger Data** (`mastra` schema, via `@mastra/pg` on the app's pool), so it remembers you across visits.
+- **Workflow** (`mastra/workflows/plan-ride.ts`): **gather** (trains, delays, boss and progress in parallel) → **decide** (rule-based next stop, train, delay risk) → **narrate** (the Conductor says it in character). The "Plan my ride" button runs it.
+- `POST /api/chat { stationId, message }` returns the answer plus `toolsUsed`; the UI shows them as chips. `POST /api/plan-ride { stationId }` runs the workflow.
+- Try it from the terminal: `npm run conductor -- "Should I wait for the next train?" bucentral`.
+
+### Gemini
+
+- **Photo quests:** Gemini Vision checks every photo (see "World: photo quests").
+- **Boss names:** when a real delay spawns a Delay Boss, Gemini names it and writes its taunt from the actual numbers (late trains, share late, worst delay), e.g. "The Grand Orange Switchblade: Your commute stalls for 13 minutes while my shadow consumes the tracks". `GET /api/boss/persona?line=Orange` (`lib/bossPersona.ts`). It's written once and stored on the boss (`boss_events.name/taunt`), so everyone on the line fights the same boss and Gemini is called once per boss. If Gemini is busy, the screens keep their built-in names.
+
+### Tiger Data
+
+- `prediction_snapshots` is a **hypertable**: every MBTA prediction, ~1,300 rows every 15 s (2M+ so far), with **columnstore compression** (about 89% smaller: 100 MB → 11 MB).
+- Two **continuous aggregates** keep 5-minute buckets up to date in the background: `delay_5m` (avg/max delay) and `late_share_5m` (share of predictions 5+ min late, the signal that spawns a Delay Boss).
+- `GET /api/delays?line=Orange&hours=3` serves the chart shown when a Delay Boss appears ("THE REAL DELAY", with the 50% boss line), so a 3-hour chart is ~36 pre-computed rows instead of scanning raw data.
+
 ### Testing the backend
 
 - **See it working:** open <http://localhost:3000/dev>. It's a plain console that shows the live delay bosses, a countdown to the next trains, and buttons to clear stations and fight a final boss. It's not the game UI.

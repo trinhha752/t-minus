@@ -94,7 +94,7 @@ export function ConductorChat({ stationId, onClose }: { stationId: string; onClo
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-pixel text-[17px] font-bold leading-tight">The Conductor</p>
-            <p className="truncate font-pixel text-[11px] text-muted">AI guide · live trains, Tiger Data, your progress</p>
+            <p className="truncate font-pixel text-[11px] text-muted">AI guide · live trains, delays, your progress</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center border-2 border-ink bg-[#F1E7CF]">
             <X size={18} strokeWidth={2.6} />

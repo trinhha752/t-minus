@@ -54,9 +54,20 @@ test("every UI station has its own themed photo quest, on a real generic target"
   }
 });
 
-test("themed quests fill in the line color", () => {
-  const q = stationQuest("north", "Green");
-  assert.match(q.prompt, /something green before/);
-  assert.equal(q.target, "an object or surface that is mostly green");
-  assert.equal(stationQuest("harvard", "Red").target, "a sign with visible writing or letters");
+test("station quests: a fact for flavor, plus a task any station can satisfy", () => {
+  const north = stationQuest("north", "Green");
+  assert.match(north.prompt, /something green/);
+  assert.equal(north.target, "an object or surface that is mostly green");
+  const harvard = stationQuest("harvard", "Red");
+  assert.equal(harvard.target, "a sign with visible writing or letters");
+  assert.match(harvard.hook ?? "", /three lies/);
+  assert.doesNotMatch(harvard.prompt, /true|lie|statue/i); // the task never depends on the fact
+});
+
+test("hooks are facts, never instructions", () => {
+  for (const s of STATIONS) {
+    const hook = stationQuest(s.id).hook ?? "";
+    assert.ok(hook.length > 10, `${s.id} has no hook`);
+    assert.doesNotMatch(hook, /\b(find|snap|photograph|go to|walk)\b/i, `${s.id}: hook reads like a task`);
+  }
 });

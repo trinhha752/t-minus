@@ -188,6 +188,7 @@ export default function PhotoQuest({
         <div className="flex-1">
           <p className="text-xs uppercase tracking-widest opacity-70">Photo quest · {stationName}</p>
           <p className="mt-1 text-xl font-bold leading-tight">{quest.prompt}</p>
+          <p className="mt-0.5 text-xs opacity-70">Anywhere in this station counts.</p>
         </div>
         {onClose && (
           <button onClick={() => finish({ passed: false, dataUrl: null })} className="px-2 text-2xl leading-none" aria-label="Close">

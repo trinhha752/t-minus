@@ -55,8 +55,20 @@ test("Kenmore outbound looks down the branches", () => {
 });
 
 test("switching lines: the nearest transfer to a line with stops left", () => {
-  assert.deepEqual(suggestTransfer("bucentral", new Set()), { at: "park", line: "red", left: 10, stops: 8 });
-  const redDone = new Set(["alewife", "davis", "porter", "harvard", "central", "kendall", "charles", "park", "downtown", "south"]);
+  assert.deepEqual(suggestTransfer("bucentral", new Set()), { at: "park", line: "red", left: ROUTES.red.length, stops: 8 });
+  const redDone = new Set(ROUTES.red);
   assert.equal(suggestTransfer("bucentral", redDone)?.line, "orange"); // Red done: Orange at Haymarket
   assert.equal(suggestTransfer("harvard", new Set())?.at, "park");
+});
+
+test("Red splits at JFK/UMass into the Ashmont and Braintree branches", () => {
+  assert.equal(nextAlong("south", new Set(), 1)?.id, "broadway");
+  assert.equal(nextAlong("jfk", new Set(), 1)?.id, "savin"); // Ashmont first
+  assert.equal(nextAlong("jfk", new Set(["savin", "fields", "shawmut", "ashmont"]), 1)?.id, "nquincy");
+  const quincy = pathFor("quincy");
+  assert.equal(quincy[0], "alewife");
+  assert.ok(quincy.includes("jfk") && !quincy.includes("ashmont"));
+  assert.equal(quincy[quincy.length - 1], "braintree");
+  assert.equal(nextAlong("quincy", new Set(), -1)?.id, "wollaston");
+  assert.equal(nextAlong("ashmont", new Set(), 1), null); // end of the Ashmont branch
 });

@@ -146,16 +146,24 @@ const MALL: Pt[] = (
 ).map(spread)
 
 // Track beyond the last station at each end, so lines run off the map.
-const TRACK_ENDS: { head?: Pt[]; tail?: Pt[] }[] = (
-  [
-  { head: [[-160, 60], [10, 140]], tail: [[346, 600], [352, 1100]] }, // Red
-  { head: [[184, -120], [196, 160]] }, // Green trunk
-  { tail: [[-90, 540], [-300, 560]] }, // B
-  { tail: [[-60, 628], [-260, 720]] }, // C
-  { tail: [[90, 640], [60, 800]] }, // D
-  { tail: [[110, 640], [90, 800]] }, // E
-  ] as { head?: Pt[]; tail?: Pt[] }[]
-).map((e) => ({ head: e.head?.map(spread), tail: e.tail?.map(spread) }))
+/**
+ * Track that runs past the first/last station and off the map, keyed by line and
+ * branch (not by position in TRACKS, so adding a branch can't shift the others).
+ */
+const TRACK_ENDS: Record<string, { head?: Pt[]; tail?: Pt[] }> = Object.fromEntries(
+  Object.entries({
+    red: { head: [[-160, 60], [10, 140]] }, // Red trunk; it continues south as the A and Br branches
+    'red-A': { tail: [[262, 920], [240, 1100]] }, // past Ashmont, toward Mattapan
+    'red-Br': { tail: [[332, 1030], [326, 1140]] }, // past Braintree
+    green: { head: [[184, -120], [196, 160]] }, // Green trunk
+    'green-B': { tail: [[-90, 540], [-300, 560]] },
+    'green-C': { tail: [[-60, 628], [-260, 720]] },
+    'green-D': { tail: [[90, 640], [60, 800]] },
+    'green-E': { tail: [[110, 640], [90, 800]] },
+    orange: { head: [[312, 100]], tail: [[104, 860]] }, // toward Oak Grove / past Forest Hills
+  } as Record<string, { head?: Pt[]; tail?: Pt[] }>).map(([k, e]) => [k, { head: e.head?.map(spread), tail: e.tail?.map(spread) }]),
+)
+const endsOf = (t: { line: LineId; branch?: string }) => TRACK_ENDS[t.branch ? `${t.line}-${t.branch}` : t.line]
 
 const byId = new Map(STATIONS.map((s) => [s.id, s]))
 
@@ -187,12 +195,12 @@ const polyline = (pts: Pt[]): Polyline => {
   }
 }
 
-const TRACK_LINES: { line: LineId; path: Polyline }[] = TRACKS.map((t, i) => ({
+const TRACK_LINES: { line: LineId; path: Polyline }[] = TRACKS.map((t) => ({
   line: t.line,
   path: polyline([
-    ...(TRACK_ENDS[i]?.head ?? []),
+    ...(endsOf(t)?.head ?? []),
     ...t.ids.map((id) => at(byId.get(id)!)),
-    ...(TRACK_ENDS[i]?.tail ?? []),
+    ...(endsOf(t)?.tail ?? []),
   ]),
 }))
 const RIVER_LINE = polyline(RIVER)

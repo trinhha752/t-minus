@@ -56,6 +56,7 @@ Map: "YOU ARE HERE · BU Central"  (your phone's real location)
 
 - **Progress is saved on the server.** Stamped stations, gold (points) and streak come from `/api/progress` and `/api/me`, so a refresh keeps them. The line chips at the top count real stamps.
 - **Where next** (`components/game/loop.ts`): the nearest unstamped stop in **each direction** along your track (a Green branch stop's track is the trunk plus its branch; at Kenmore, outbound looks down the B, C and D branches). Live train times come from `/api/predictions`; MBTA direction 0 is "▸" (outbound/southbound), 1 is "◂".
+- **Branches:** Green splits at Kenmore (B, C, D) and Copley (E); Red splits at JFK/UMass into Ashmont (A) and Braintree (Br). Branch stops show their letter on the map.
 - **Switching lines** happens at the transfer stations: Park Street (Red–Green), Downtown Crossing (Red–Orange), and North Station and Haymarket (Green–Orange). When a direction or the whole line is done, the card points to the nearest transfer to a line with stations left.
 - **Start over:** tap **↺ New rider (demo)** on the map (dev, or `NEXT_PUBLIC_DEMO_MODE=1`). It gives you a fresh rider with nothing stamped.
 - Playing a station again the same day is allowed but earns nothing ("Already stamped today").

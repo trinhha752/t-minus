@@ -104,7 +104,7 @@ async function main() {
   // Progression: chapters come from components/run/stations.ts. Use UI slugs.
   r = await call("GET", "/api/progress");
   const red = r.body.data?.chapters?.find((c: any) => c.id === "red");
-  check("progress: red chapter from the UI's stations.ts", red?.stations?.length === 10 && red.stations[0].slug === "alewife",
+  check("progress: red chapter from the UI's stations.ts", red?.stations?.length >= 10 && red.stations[0].slug === "alewife" && red.stations.some((s: any) => s.slug === "braintree"),
     `${red?.name}, ${red?.stations?.length} stations, boss ${red?.bossName}`);
 
   r = await call("POST", "/api/final-boss/start", { chapterId: "red" });
@@ -130,7 +130,7 @@ async function main() {
     r = await call("POST", "/api/minigame/result", body);
     if (!r.body.ok || !r.body.data.stationCleared) check(`minigame: clear ${s.slug}`, false, r.body.error);
     if (i === red.stations.length - 1) {
-      check("minigame: all 10 red stations clear", r.body.ok);
+      check(`minigame: all ${red.stations.length} red stations clear`, r.body.ok);
       check("minigame: last station unlocks the chapter boss", r.body.data?.chapterBossUnlocked === "red", `${r.body.data?.chapterBossUnlocked}`);
     }
   }

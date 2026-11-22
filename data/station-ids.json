@@ -42,5 +42,17 @@
   "fenway": "place-fenwy",
   "prudential": "place-prmnl",
   "northeastern": "place-nuniv",
-  "mfa": "place-mfa"
+  "mfa": "place-mfa",
+  "broadway": "place-brdwy",
+  "andrew": "place-andrw",
+  "jfk": "place-jfk",
+  "savin": "place-shmnl",
+  "fields": "place-fldcr",
+  "shawmut": "place-smmnl",
+  "ashmont": "place-asmnl",
+  "nquincy": "place-nqncy",
+  "wollaston": "place-wlsta",
+  "quincy": "place-qnctr",
+  "qadams": "place-qamnl",
+  "braintree": "place-brntn"
 }

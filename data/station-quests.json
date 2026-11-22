@@ -171,5 +171,53 @@
   "mfa": {
     "questId": "door",
     "prompt": "Nothing in the Gardner Museum nearby is ever allowed to move. Find a door that stays exactly where it is."
+  },
+  "broadway": {
+    "questId": "line-color",
+    "prompt": "South Boston's parade has marched since 1901. Find something {color} to march with."
+  },
+  "andrew": {
+    "questId": "sign",
+    "prompt": "Governor Andrew raised the 54th Massachusetts. Find a sign with writing, like a recruiting poster."
+  },
+  "jfk": {
+    "questId": "light",
+    "prompt": "JFK sent America to the Moon. Find a light bright enough to launch by."
+  },
+  "savin": {
+    "questId": "stairs",
+    "prompt": "Savin Hill was covered in red cedars. Find stairs and climb the hill."
+  },
+  "fields": {
+    "questId": "seat",
+    "prompt": "Fields Corner is Boston's Little Saigon. Find a seat for a bowl of pho."
+  },
+  "shawmut": {
+    "questId": "map",
+    "prompt": "Shawmut was the old name for Boston's peninsula. Find a map and find the old shoreline."
+  },
+  "ashmont": {
+    "questId": "metal",
+    "prompt": "The Mattapan trolleys here were built in the 1940s. Find something metal that's still running."
+  },
+  "nquincy": {
+    "questId": "arrow",
+    "prompt": "The Red Line pushed into Quincy in 1971. Find an arrow pointing the way south."
+  },
+  "wollaston": {
+    "questId": "number",
+    "prompt": "Captain Wollaston landed here in 1625. Find a number, like a year on a sign."
+  },
+  "quincy": {
+    "questId": "door",
+    "prompt": "Two presidents rest in the church across the street. Find a door worthy of a president."
+  },
+  "qadams": {
+    "questId": "sign",
+    "prompt": "Two presidents were born a few miles from here. Find a sign with a name on it."
+  },
+  "braintree": {
+    "questId": "line-color",
+    "prompt": "You made it to the end of the Red Line! Find something {color} to celebrate."
   }
 }

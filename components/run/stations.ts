@@ -2,6 +2,9 @@ export type LineId = 'red' | 'green' | 'orange'
 
 export type LabelAlign = 'start' | 'end' | 'center'
 
+/** Green Line B/C/D/E, and the Red Line's Ashmont (A) and Braintree (Br) branches. */
+export type Branch = 'B' | 'C' | 'D' | 'E' | 'A' | 'Br'
+
 export type Station = {
   id: string
   name: string
@@ -13,8 +16,8 @@ export type Station = {
   story: string
   game: { title: string; genre: string; time: string }
   fact: { no: number; title: string }
-  /** Green Line branch, for stops past the shared trunk. */
-  branch?: 'B' | 'C' | 'D' | 'E'
+  /** Branch, for stops past a shared trunk: Green B/C/D/E, Red A (Ashmont) and Br (Braintree). */
+  branch?: Branch
 }
 
 export const LINES: Record<
@@ -267,6 +270,149 @@ export const STATIONS: Station[] = [
     story: 'The glowing sign over Kenmore Square has lit the skyline since 1965.',
     game: { title: 'Neon Night', genre: 'Pattern', time: '~30 sec' },
     fact: { no: 10, title: 'The Neon Sign' },
+  },
+
+  // Red Line south of South Station: the trunk to JFK/UMass, then the Ashmont and Braintree branches
+  {
+    id: 'broadway',
+    name: "Broadway",
+    lines: ['red'],
+    x: 330,
+    y: 590,
+    label: { dx: 14, dy: 0, align: 'start' },
+    story: "Broadway is the gateway to South Boston, whose St. Patrick's Day parade dates back to 1901.",
+    game: { title: "Parade Route", genre: "Rhythm", time: '~1 min' },
+    fact: { no: 11, title: "The Southie Parade" },
+  },
+  {
+    id: 'andrew',
+    name: "Andrew",
+    lines: ['red'],
+    x: 324,
+    y: 640,
+    label: { dx: 14, dy: 0, align: 'start' },
+    story: "Andrew Square is named for John Andrew, the Civil War governor who raised the 54th Massachusetts Regiment.",
+    game: { title: "Raise the 54th", genre: "Strategy", time: '~90 sec' },
+    fact: { no: 12, title: "The War Governor" },
+  },
+  {
+    id: 'jfk',
+    name: "JFK/UMass",
+    lines: ['red'],
+    x: 330,
+    y: 690,
+    label: { dx: 14, dy: 0, align: 'start', text: "JFK/\nUMass" },
+    story: "The John F. Kennedy Presidential Library, opened in 1979, stands on Columbia Point nearby.",
+    game: { title: "Moonshot", genre: "Timing", time: '~45 sec' },
+    fact: { no: 13, title: "The Library by the Sea" },
+  },
+  {
+    id: 'savin',
+    name: "Savin Hill",
+    lines: ['red'],
+    branch: 'A',
+    x: 316,
+    y: 740,
+    label: { dx: -14, dy: 0, align: 'end' },
+    story: "Savin Hill takes its name from the savin, a red cedar that once grew on its slopes.",
+    game: { title: "Cedar Climb", genre: "Platformer", time: '~1 min' },
+    fact: { no: 14, title: "The Cedar Hill" },
+  },
+  {
+    id: 'fields',
+    name: "Fields Corner",
+    lines: ['red'],
+    branch: 'A',
+    x: 300,
+    y: 790,
+    label: { dx: -14, dy: 0, align: 'end', text: "Fields\nCorner" },
+    story: "Fields Corner is the heart of Boston's Vietnamese community.",
+    game: { title: "Pho Rush", genre: "Order up", time: '~1 min' },
+    fact: { no: 15, title: "Little Saigon" },
+  },
+  {
+    id: 'shawmut',
+    name: "Shawmut",
+    lines: ['red'],
+    branch: 'A',
+    x: 286,
+    y: 836,
+    label: { dx: -14, dy: 0, align: 'end' },
+    story: "Shawmut was the Native name for the peninsula that became Boston.",
+    game: { title: "Old Shoreline", genre: "Path Builder", time: '~45 sec' },
+    fact: { no: 16, title: "The Old Name" },
+  },
+  {
+    id: 'ashmont',
+    name: "Ashmont",
+    lines: ['red'],
+    branch: 'A',
+    x: 272,
+    y: 884,
+    label: { dx: -14, dy: 0, align: 'end' },
+    story: "From Ashmont, the Mattapan trolley still runs streetcars built in the 1940s.",
+    game: { title: "Last Trolley", genre: "Reflex", time: '~45 sec' },
+    fact: { no: 17, title: "The Old Trolleys" },
+  },
+  {
+    id: 'nquincy',
+    name: "North Quincy",
+    lines: ['red'],
+    branch: 'Br',
+    x: 348,
+    y: 760,
+    label: { dx: 14, dy: 0, align: 'start', text: "North\nQuincy" },
+    story: "The Red Line reached Quincy in 1971, when North Quincy opened.",
+    game: { title: "Extend the Line", genre: "Puzzle", time: '~90 sec' },
+    fact: { no: 18, title: "Into Quincy" },
+  },
+  {
+    id: 'wollaston',
+    name: "Wollaston",
+    lines: ['red'],
+    branch: 'Br',
+    x: 354,
+    y: 820,
+    label: { dx: 14, dy: 0, align: 'start' },
+    story: "Wollaston is named for Captain Richard Wollaston, who settled Mount Wollaston in 1625.",
+    game: { title: "Captain's Landing", genre: "Memory", time: '~1 min' },
+    fact: { no: 19, title: "The Captain" },
+  },
+  {
+    id: 'quincy',
+    name: "Quincy Center",
+    lines: ['red'],
+    branch: 'Br',
+    x: 352,
+    y: 880,
+    label: { dx: 14, dy: 0, align: 'start', text: "Quincy\nCenter" },
+    story: "Presidents John Adams and John Quincy Adams are both buried in the church across the street.",
+    game: { title: "Two Presidents", genre: "Two Truths and a Lie", time: '~1 min' },
+    fact: { no: 20, title: "The Presidents' Church" },
+  },
+  {
+    id: 'qadams',
+    name: "Quincy Adams",
+    lines: ['red'],
+    branch: 'Br',
+    x: 344,
+    y: 936,
+    label: { dx: 14, dy: 0, align: 'start', text: "Quincy\nAdams" },
+    story: "The birthplaces of John Adams and John Quincy Adams still stand in Quincy, a few miles away.",
+    game: { title: "Birthplace Hunt", genre: "Map hunt", time: '~45 sec' },
+    fact: { no: 21, title: "Two Birthplaces" },
+  },
+  {
+    id: 'braintree',
+    name: "Braintree",
+    lines: ['red'],
+    branch: 'Br',
+    x: 336,
+    y: 990,
+    label: { dx: 14, dy: 0, align: 'start' },
+    story: "Braintree became the end of the Red Line in 1980.",
+    game: { title: "End of the Line", genre: "Reflex", time: '~1 min' },
+    fact: { no: 22, title: "The Last Stop" },
   },
   // Orange Line — Revolution Road
   {
@@ -555,6 +701,18 @@ export const ROUTES: Record<LineId, string[]> = {
     'park',
     'downtown',
     'south',
+    'broadway',
+    'andrew',
+    'jfk',
+    'savin',
+    'fields',
+    'shawmut',
+    'ashmont',
+    'nquincy',
+    'wollaston',
+    'quincy',
+    'qadams',
+    'braintree',
   ],
   green: [
     'lechmere',
@@ -600,8 +758,10 @@ export const ROUTES: Record<LineId, string[]> = {
 }
 
 /** The drawn track: the Red Line, the Green Line trunk, and the four Green Line branches. */
-export const TRACKS: { line: LineId; branch?: 'B' | 'C' | 'D' | 'E'; ids: string[] }[] = [
-  { line: 'red', ids: ROUTES.red },
+export const TRACKS: { line: LineId; branch?: Branch; ids: string[] }[] = [
+  { line: 'red', ids: ROUTES.red.slice(0, ROUTES.red.indexOf('jfk') + 1) },
+  { line: 'red', branch: 'A', ids: ['jfk', 'savin', 'fields', 'shawmut', 'ashmont'] },
+  { line: 'red', branch: 'Br', ids: ['jfk', 'nquincy', 'wollaston', 'quincy', 'qadams', 'braintree'] },
   { line: 'green', ids: ROUTES.green.slice(0, ROUTES.green.indexOf('kenmore') + 1) },
   { line: 'green', branch: 'B', ids: ['kenmore', 'blandford', 'bueast', 'bucentral', 'amory', 'babcock', 'packards', 'harvardave'] },
   { line: 'green', branch: 'C', ids: ['kenmore', 'stmarys', 'hawes', 'kent', 'stpaul', 'coolidge'] },
